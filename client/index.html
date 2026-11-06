@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101b19">
+<meta name="description" content="Nowa — современный мессенджер">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Nowa — мессенджер</title>
+<style>
+:root{--bg:#080d20;--panel:#101832;--panel2:#172342;--line:#28345a;--text:#f5f4ff;--muted:#9ba6c7;--green:#8957ff;--green2:#6736e8;--bubble:#1a2850;--white:#fff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0,#29205b 0,transparent 40%),var(--bg);color:var(--text);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+button,input{font:inherit}button{cursor:pointer;border:0;color:inherit}.app{max-width:1180px;margin:24px auto;min-height:calc(100vh - 48px);display:grid;grid-template-columns:350px 1fr;background:rgba(12,18,39,.96);border:1px solid #29345a;border-radius:27px;overflow:hidden;box-shadow:0 25px 80px #0007}
+.sidebar{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:calc(100vh - 48px);background:#0d1530}.brand{padding:25px 23px 20px;display:flex;align-items:center;gap:12px}.logo{width:44px;height:44px;border-radius:16px;background:linear-gradient(145deg,#65d7ff,#9255ff);display:grid;place-items:center;color:#fff;font-weight:900;font-size:23px;box-shadow:0 8px 22px #8055ff55}.brand strong{font-size:23px;letter-spacing:-.8px}.brand small{display:block;color:#9ba6c7;font-size:10px;letter-spacing:2px;text-transform:uppercase}
+.profile{margin:0 17px 16px;padding:13px;border-radius:17px;background:linear-gradient(110deg,#1c2850,#171d3b);display:flex;align-items:center;gap:11px}.avatar{width:43px;height:43px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#bd91c9,#6955a8);font-weight:700;color:#fff;flex:none}.profile .meta{flex:1}.profile b{display:block}.profile small{color:#a78aff}
+.search{margin:0 17px 14px;position:relative}.search input{width:100%;background:#17213e;border:1px solid #2a365a;border-radius:13px;padding:12px 14px 12px 40px;color:var(--text);outline:none}.search:before{content:"⌕";position:absolute;left:14px;top:6px;font-size:24px;color:var(--muted)}
+.tabs{display:flex;gap:5px;padding:0 17px 12px}.tabs button{flex:1;background:transparent;color:var(--muted);padding:9px 4px;border-radius:10px;font-size:13px}.tabs button.active{background:#30245c;color:#cbbaff;font-weight:700}
+.chat-list{overflow:auto;padding:0 9px 20px}.chat-item{display:flex;gap:11px;padding:12px 10px;border-radius:14px;align-items:center;cursor:pointer}.chat-item:hover,.chat-item.selected{background:#192448}.chat-item .avatar{width:46px;height:46px;font-size:14px}.chat-info{min-width:0;flex:1}.chat-top{display:flex;justify-content:space-between;gap:8px}.chat-top b{font-size:14px}.chat-top time{font-size:11px;color:var(--muted)}.preview{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.unread{background:#8957ff;color:#fff;border-radius:20px;min-width:19px;text-align:center;font-size:11px;font-weight:800;padding:1px 5px}
+.main{display:flex;flex-direction:column;min-height:calc(100vh - 48px);position:relative;background:radial-gradient(ellipse at 90% 90%,#21194b55,transparent 45%),#101831}.welcome{margin:auto;text-align:center;max-width:430px;padding:30px}.welcome .biglogo{margin:0 auto 20px;width:82px;height:82px;border-radius:28px;background:linear-gradient(145deg,#65d7ff,#8050f7);color:white;display:grid;place-items:center;font-size:42px;font-weight:900;box-shadow:0 16px 35px #7655e855}.welcome h1{font-size:29px;letter-spacing:-1px;margin:0 0 8px}.welcome p{color:var(--muted);margin:0}
+.chat-head{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;background:#111a34}.chat-head .avatar{width:42px;height:42px}.chat-head .headmeta{flex:1}.chat-head small{color:#b39aff}.head-actions{display:flex;gap:8px}.iconbtn{width:38px;height:38px;border-radius:12px;background:#20294b;color:#c2b1ff;font-size:17px}.messages{flex:1;overflow:auto;padding:25px clamp(15px,4vw,50px);display:flex;flex-direction:column;gap:11px;background-image:radial-gradient(#4b4b8455 .7px,transparent .7px);background-size:20px 20px}.day{text-align:center;color:var(--muted);font-size:11px;margin:4px auto 12px;background:#20294b;padding:5px 12px;border-radius:20px}.msg{max-width:min(72%,490px);padding:10px 13px;border-radius:16px;background:#202b4b;align-self:flex-start;box-shadow:0 3px 10px #0002;overflow-wrap:anywhere}.msg.mine{align-self:flex-end;background:linear-gradient(135deg,#8757f4,#5630c8);color:white;border-bottom-right-radius:5px}.msg:not(.mine){border-bottom-left-radius:5px}.msg time{display:block;text-align:right;color:#a9afd0;font-size:10px;margin-top:4px}.msg.mine time{color:#e0d5ff}
+.composer{padding:15px 20px calc(15px + env(safe-area-inset-bottom));display:flex;gap:10px;border-top:1px solid var(--line);background:#101831}.composer input{flex:1;min-width:0;border:1px solid #2b3658;background:#1a2442;color:var(--text);border-radius:14px;padding:13px 15px;outline:none}.send{width:46px;border-radius:14px;background:linear-gradient(135deg,#a17cff,#6736e8);color:white;font-weight:900;font-size:19px;box-shadow:0 6px 15px #7655e855}
+.panel-view{padding:28px;overflow:auto}.panel-view h2{margin:0 0 6px}.sub{color:var(--muted);margin:0 0 24px}.contact{padding:13px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}.contact .avatar{width:42px;height:42px}.contact button{margin-left:auto;background:#30245c;color:#cbbaff;padding:8px 12px;border-radius:10px}.empty{color:var(--muted);text-align:center;padding:35px}
+@media(max-width:700px){.app{display:block;margin:0;border:0;border-radius:0;min-height:100dvh}.sidebar{min-height:100dvh;border:0}.main{display:none;min-height:100dvh}.app.conversation .sidebar{display:none}.app.conversation .main{display:flex}.chat-head{padding:12px 14px}.messages{padding:18px 13px}.composer{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}.msg{max-width:86%}.panel-view{padding:23px 18px}}
+
+.auth-screen{position:fixed;inset:0;z-index:20;background:radial-gradient(ellipse at 15% 0,#29205b 0,transparent 42%),#080d20;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.auth-card{width:min(100%,440px);background:#111a34;border:1px solid #29345a;border-radius:26px;padding:28px;box-shadow:0 30px 90px #0008}
+.auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.auth-brand .logo{width:52px;height:52px}
+.auth-card h1{font-size:25px;margin:0 0 5px;letter-spacing:-.6px}.auth-sub{color:#9ba6c7;margin:0 0 22px;font-size:13px}
+.auth-switch{display:flex;background:#0b142b;padding:4px;border-radius:13px;margin-bottom:17px}.auth-switch button{flex:1;padding:10px;border-radius:10px;background:transparent;color:#9ba6c7}.auth-switch button.active{background:#30245c;color:#d4c8ff}
+.auth-field{display:block;color:#c5cce0;font-size:12px;margin:13px 0 6px}.auth-input{width:100%;background:#0b142b;border:1px solid #2b3658;color:#fff;border-radius:12px;padding:13px 14px;outline:none}.auth-input:focus{border-color:#8957ff}
+.auth-primary{width:100%;padding:13px;border-radius:13px;margin-top:18px;background:linear-gradient(135deg,#a17cff,#6736e8);color:#fff;font-weight:750}
+.auth-note{font-size:11px;color:#8793b8;line-height:1.5;margin:14px 0 0}.auth-error{color:#ff9aab;font-size:12px;margin-top:8px;min-height:18px}
+.auth-back{background:transparent;color:#b9a6ff;padding:0;margin:0 0 16px}
+@media(max-width:480px){.auth-card{padding:22px 19px;border-radius:22px}.auth-screen{padding:12px}}
+
+
+.contact-tools{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 18px}
+.contact-tools input{flex:1;min-width:180px;background:#17213e;border:1px solid #2a365a;border-radius:12px;padding:11px 13px;color:var(--text);outline:none}
+.contact-tools button,.contact button{background:#30245c;color:#d4c8ff;padding:9px 13px;border-radius:10px;font-weight:650}
+.contact-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:10px}
+.contact-card{display:flex;align-items:center;gap:11px;padding:13px;background:#141f3d;border:1px solid #28345a;border-radius:15px;min-width:0}
+.contact-card .details{min-width:0;flex:1}.contact-card b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-card small{color:var(--muted);display:block;font-size:11px}
+.contact-card button{font-size:12px;white-space:nowrap}
+.contact-section-title{font-size:13px;color:#bdb1ff;margin:22px 0 10px}
+.contact-status{font-size:11px;color:#8fd9ff;margin-top:3px}
+
+</style>
+<link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#101a36"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="NOWA"><link rel="apple-touch-icon" href="./icons/nowa-192.png"></head>
+<body>
+
+<div class="auth-screen" id="authScreen">
+ <div class="auth-card">
+  <div class="auth-brand"><div class="logo">N</div><div><strong style="font-size:24px">NOWA</strong><small style="display:block;color:#9ba6c7;letter-spacing:2px;font-size:10px">CHAT · CONNECT · BELONG</small></div></div>
+  <div id="authStep">
+   <h1>Добро пожаловать</h1><p class="auth-sub">Создайте аккаунт NOWA или войдите, чтобы продолжить.</p>
+   <div class="auth-switch"><button id="registerTab" class="active" onclick="setAuthMode('register')">Регистрация</button><button id="loginTab" onclick="setAuthMode('login')">Вход</button></div>
+   <label class="auth-field">Как зарегистрироваться?</label>
+   <div class="auth-switch"><button id="phoneTab" class="active" onclick="setAuthMethod('phone')">Телефон</button><button id="emailTab" onclick="setAuthMethod('email')">Эл. почта</button></div>
+   <label class="auth-field" id="identityLabel">Номер телефона</label><input class="auth-input" id="identityInput" placeholder="+7 900 000-00-00" autocomplete="username">
+   <div id="nameWrap"><label class="auth-field">Ваше имя</label><input class="auth-input" id="nameInput" placeholder="Например, Алексей" autocomplete="name"></div>
+   <label class="auth-field">Пароль</label><input class="auth-input" id="passwordInput" type="password" placeholder="Не менее 8 символов" autocomplete="new-password">
+   <div class="auth-error" id="authError"></div><button class="auth-primary" id="authContinue" onclick="submitAuth()">Создать аккаунт</button>
+   <p class="auth-note">Демо-режим: настоящая отправка SMS и писем пока не подключена. Не используйте настоящий пароль.</p>
+  </div>
+  <div id="verifyStep" style="display:none">
+   <button class="auth-back" onclick="backToAuth()">← Назад</button><h1>Подтвердите контакт</h1><p class="auth-sub" id="verifyDescription">Введите демонстрационный код.</p>
+   <label class="auth-field">Код подтверждения</label><input class="auth-input" id="codeInput" inputmode="numeric" maxlength="6" placeholder="123456">
+   <div class="auth-error" id="verifyError"></div><button class="auth-primary" onclick="verifyAuth()">Подтвердить и войти</button>
+   <p class="auth-note">Для проверки прототипа используйте код <b style="color:#cbbaff">123456</b>. В рабочем сервисе здесь будет код из SMS или письма.</p>
+  </div>
+ </div>
+</div>
+
+<div class="app" id="app">
+<aside class="sidebar">
+  <div class="brand"><div class="logo">N</div><div><strong>Nowa</strong><small>Общайся. Делись. Будь ближе.</small></div></div>
+  <div class="profile"><div class="avatar">ВЫ</div><div class="meta"><b>Мой профиль</b><small>● В сети</small></div><button class="iconbtn" id="accountButton" onclick="logoutDemo()" title="Выйти">Выйти</button><button class="iconbtn" title="Настройки" onclick="showView('settings')">⚙</button></div>
+  <div class="search"><input id="search" placeholder="Поиск по чатам…" oninput="renderChats()"></div>
+  <div class="tabs"><button class="active" data-tab="chats" onclick="showView('chats')">Чаты</button><button data-tab="contacts" onclick="showView('contacts')">Контакты</button><button data-tab="calls" onclick="showView('calls')">Звонки</button></div>
+  <div class="chat-list" id="chatList"></div>
+</aside>
+<main class="main" id="main">
+  <section class="welcome" id="welcome"><div class="biglogo">N</div><h1>Добро пожаловать в Nowa</h1><p>Выберите чат слева или начните новую беседу. Ваше общение — в одном месте.</p></section>
+  <section id="conversation" style="display:none;flex:1;min-height:0;flex-direction:column">
+    <header class="chat-head"><button class="iconbtn back" onclick="closeChat()">‹</button><div class="avatar" id="headAvatar"></div><div class="headmeta"><b id="headName"></b><br><small id="headMeta">● в сети</small></div><div class="head-actions"><button class="iconbtn" title="Голосовой звонок" onclick="startNowaCall('audio')">☎</button><button class="iconbtn" title="Видеозвонок" onclick="startNowaCall('video')">▣</button></div></header>
+    <div class="messages" id="messages"></div>
+    <form class="composer" id="sendForm"><input id="messageInput" placeholder="Напишите сообщение…" autocomplete="off"><button class="send" aria-label="Отправить">➤</button></form>
+  </section>
+  <section class="panel-view" id="otherView" style="display:none"></section>
+</main>
+</div>
+<script>
+const initial=[
+{id:1,name:'Анна',avatar:'А',color:'#a97859',preview:'Отлично! 👍',time:'09:24',unread:1,messages:[['Привет! Как дела?',false],['Всё отлично, спасибо! А у тебя?',true],['Отлично! 👍',false]]},
+{id:2,name:'Друзья',avatar:'Д',color:'#287f9b',preview:'Давайте в субботу?',time:'08:52',unread:3,messages:[['Кто свободен на выходных?',false],['Я могу в субботу',true],['Давайте в субботу?',false]]},
+{id:3,name:'Котики 🐾',avatar:'🐱',color:'#967eaa',preview:'Фото',time:'Вчера',unread:0,messages:[['Посмотрите, какой милый котик!',false]]},
+{id:4,name:'Работа',avatar:'Р',color:'#2477c5',preview:'Готово, отправляю отчёт',time:'Вчера',unread:0,messages:[['Как продвигается проект?',false],['Готово, отправляю отчёт',true]]},
+{id:5,name:'Мария',avatar:'М',color:'#bb806a',preview:'Хорошо, спасибо!',time:'Пн',unread:0,messages:[['Спасибо за помощь!',false],['Хорошо, спасибо!',true]]}
+];
+let chats=JSON.parse(localStorage.getItem('nowa_chats')||'null')||initial,active=null,view='chats';
+function save(){localStorage.setItem('nowa_chats',JSON.stringify(chats))}
+function avatarHTML(c){return `<div class="avatar" style="background:${c.color}">${c.avatar}</div>`}
+
+const demoDirectory = [
+ {id:'u101',name:'Екатерина Смирнова',phone:'+7 901 234-56-01',avatar:'К',color:'#9b70c7'},
+ {id:'u102',name:'Максим Орлов',phone:'+7 901 234-56-02',avatar:'М',color:'#397fa8'},
+ {id:'u103',name:'Алина Волкова',phone:'+7 901 234-56-03',avatar:'А',color:'#b87991'},
+ {id:'u104',name:'Даниил Ким',phone:'+7 901 234-56-04',avatar:'Д',color:'#668b79'},
+ {id:'u105',name:'София Морозова',phone:'+7 901 234-56-05',avatar:'С',color:'#a78655'}
+];
+function getSavedContacts(){return JSON.parse(localStorage.getItem('nowa_contacts')||'[]')}
+function saveContacts(items){localStorage.setItem('nowa_contacts',JSON.stringify(items))}
+function renderContacts(){
+ const o=document.getElementById('otherView'), contacts=getSavedContacts();
+ o.innerHTML=`<h2>Контакты</h2><p class="sub">Находите людей по имени или номеру и добавляйте их в NOWA.</p>
+ <div class="contact-tools"><input id="contactSearch" placeholder="Имя или номер телефона…" oninput="filterDirectory()"><button onclick="filterDirectory()">Найти</button></div>
+ <div class="contact-section-title">Мои контакты · ${contacts.length}</div>
+ <div id="myContacts" class="contact-list">${contacts.length?contacts.map(contactCard).join(''):'<div class="empty">Пока нет добавленных контактов. Найдите человека ниже.</div>'}</div>
+ <div class="contact-section-title">Люди в NOWA</div><div id="directoryResults" class="contact-list"></div>
+ <p class="auth-note" style="margin-top:20px">Демонстрационный каталог. Поиск выполняется только среди тестовых профилей на этом устройстве — реальные пользователи пока не подключены.</p>`;
+ filterDirectory();
+}
+function contactCard(c){
+ const isAdded=getSavedContacts().some(x=>x.id===c.id);
+ return `<div class="contact-card"><div class="avatar" style="background:${c.color}">${escapeHTML(c.avatar)}</div><div class="details"><b>${escapeHTML(c.name)}</b><small>${escapeHTML(c.phone||'Пользователь NOWA')}</small><span class="contact-status">● Профиль NOWA</span></div>${isAdded?`<button onclick="startContactChat('${c.id}')">Написать</button>`:`<button onclick="addContact('${c.id}')">Добавить</button>`}</div>`;
+}
+function filterDirectory(){
+ const q=(document.getElementById('contactSearch')?.value||'').trim().toLowerCase();
+ const contacts=getSavedContacts();
+ const added=contacts.map(contactCard).join('');
+ const my=document.getElementById('myContacts');
+ if(my)my.innerHTML=added||'<div class="empty">Пока нет добавленных контактов. Найдите человека ниже.</div>';
+ const results=demoDirectory.filter(c=>!contacts.some(x=>x.id===c.id)&&(!q||c.name.toLowerCase().includes(q)||c.phone.includes(q)));
+ const target=document.getElementById('directoryResults');
+ if(target)target.innerHTML=results.length?results.map(contactCard).join(''):'<div class="empty">Ничего не найдено. Попробуйте другое имя или номер.</div>';
+}
+function addContact(id){
+ const person=demoDirectory.find(c=>c.id===id);if(!person)return;
+ const contacts=getSavedContacts();if(!contacts.some(c=>c.id===id)){contacts.push(person);saveContacts(contacts)}
+ filterDirectory();
+}
+function startContactChat(id){
+ const person=getSavedContacts().find(c=>c.id===id);if(!person)return;
+ let chat=chats.find(c=>c.contactId===id);
+ if(!chat){chat={id:Math.max(0,...chats.map(c=>Number(c.id)||0))+1,contactId:id,name:person.name,avatar:person.avatar,color:person.color,preview:'Начните общение',time:'Сейчас',unread:0,messages:[]};chats.unshift(chat);save()}
+ openChat(chat.id);
+}
+
+function renderChats(){let q=document.getElementById('search').value.toLowerCase();document.getElementById('chatList').innerHTML=chats.filter(c=>c.name.toLowerCase().includes(q)).map(c=>`<div class="chat-item ${active===c.id?'selected':''}" onclick="openChat(${c.id})">${avatarHTML(c)}<div class="chat-info"><div class="chat-top"><b>${c.name}</b><time>${c.time}</time></div><div class="chat-top"><span class="preview">${c.preview}</span>${c.unread?`<span class="unread">${c.unread}</span>`:''}</div></div></div>`).join('')}
+function openChat(id){active=id;let c=chats.find(x=>x.id===id);c.unread=0;save();document.getElementById('app').classList.add('conversation');document.getElementById('welcome').style.display='none';document.getElementById('otherView').style.display='none';document.getElementById('conversation').style.display='flex';document.getElementById('headAvatar').textContent=c.avatar;document.getElementById('headAvatar').style.background=c.color;document.getElementById('headName').textContent=c.name;renderMessages();renderChats();view='conversation'}
+function closeChat(){document.getElementById('app').classList.remove('conversation');active=null}
+function renderMessages(){let c=chats.find(x=>x.id===active);document.getElementById('messages').innerHTML='<div class="day">Сегодня</div>'+c.messages.map(m=>`<div class="msg ${m[1]?'mine':''}">${escapeHTML(m[0])}<time>${m[1]?'✓✓ ':''}09:41</time></div>`).join('');let box=document.getElementById('messages');box.scrollTop=box.scrollHeight}
+function escapeHTML(s){return s.replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+document.getElementById('sendForm').addEventListener('submit',e=>{e.preventDefault();let input=document.getElementById('messageInput'),v=input.value.trim();if(!v||!active)return;let c=chats.find(x=>x.id===active);c.messages.push([v,true]);c.preview=v;c.time='Сейчас';save();input.value='';renderMessages();renderChats()});
+function showView(v){view=v;active=null;document.getElementById('app').classList.remove('conversation');document.getElementById('conversation').style.display='none';document.getElementById('welcome').style.display='none';let o=document.getElementById('otherView');o.style.display='block';document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===v));if(v==='chats'){o.style.display='none';document.getElementById('welcome').style.display='block';return}
+if(v==='contacts'){renderContacts()}
+else if(v==='calls'){o.innerHTML='<h2>Звонки</h2><p class="sub">История звонков</p><div class="empty">Пока нет звонков.<br>История появится после подключения сервиса звонков.</div>'}
+else{o.innerHTML='<h2>Настройки</h2><p class="sub">Настройте свой Nowa</p><div class="contact"><b>Профиль</b><span style="margin-left:auto;color:var(--muted)">Мой профиль</span></div><div class="contact"><b>Уведомления</b><span style="margin-left:auto;color:var(--muted)">В разработке</span></div><div class="contact"><b>Конфиденциальность</b><span style="margin-left:auto;color:var(--muted)">В разработке</span></div><p class="sub" style="margin-top:25px">Nowa Preview · версия 0.1</p>'}}
+renderChats();
+
+let authMode='register',authMethod='phone',pendingAccount=null;
+function setAuthMode(mode){authMode=mode;document.getElementById('registerTab').classList.toggle('active',mode==='register');document.getElementById('loginTab').classList.toggle('active',mode==='login');document.getElementById('nameWrap').style.display=mode==='register'?'block':'none';document.getElementById('authContinue').textContent=mode==='register'?'Создать аккаунт':'Войти';document.getElementById('authError').textContent=''}
+function setAuthMethod(method){authMethod=method;document.getElementById('phoneTab').classList.toggle('active',method==='phone');document.getElementById('emailTab').classList.toggle('active',method==='email');document.getElementById('identityLabel').textContent=method==='phone'?'Номер телефона':'Электронная почта';document.getElementById('identityInput').placeholder=method==='phone'?'+7 900 000-00-00':'name@example.com';document.getElementById('identityInput').type=method==='email'?'email':'tel';document.getElementById('authError').textContent=''}
+function submitAuth(){
+ const identity=document.getElementById('identityInput').value.trim(),name=document.getElementById('nameInput').value.trim(),password=document.getElementById('passwordInput').value,err=document.getElementById('authError');
+ if(!identity){err.textContent='Введите номер телефона или электронную почту.';return}
+ if(authMethod==='email'&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identity)){err.textContent='Проверьте адрес электронной почты.';return}
+ if(authMethod==='phone'&&identity.replace(/\\D/g,'').length<7){err.textContent='Проверьте номер телефона.';return}
+ if(authMode==='register'&&!name){err.textContent='Введите ваше имя.';return}
+ if(password.length<8){err.textContent='Пароль должен содержать не менее 8 символов.';return}
+ const accounts=JSON.parse(localStorage.getItem('nowa_demo_accounts')||'[]');
+ if(authMode==='register'&&accounts.some(a=>a.identity.toLowerCase()===identity.toLowerCase())){err.textContent='Этот контакт уже зарегистрирован. Попробуйте войти.';return}
+ if(authMode==='login'&&!accounts.some(a=>a.identity.toLowerCase()===identity.toLowerCase()&&a.password===password)){err.textContent='Аккаунт не найден или пароль неверный. Для демо сначала зарегистрируйтесь.';return}
+ pendingAccount={identity,name:authMode==='register'?name:(accounts.find(a=>a.identity.toLowerCase()===identity.toLowerCase())||{}).name||'Пользователь',password,method:authMethod,mode:authMode};
+ document.getElementById('authStep').style.display='none';document.getElementById('verifyStep').style.display='block';document.getElementById('verifyDescription').textContent='Демо-подтверждение для '+identity;
+}
+function backToAuth(){document.getElementById('authStep').style.display='block';document.getElementById('verifyStep').style.display='none';document.getElementById('verifyError').textContent=''}
+function verifyAuth(){
+ if(document.getElementById('codeInput').value.trim()!=='123456'){document.getElementById('verifyError').textContent='Неверный код. Для демо введите 123456.';return}
+ if(pendingAccount.mode==='register'){let accounts=JSON.parse(localStorage.getItem('nowa_demo_accounts')||'[]');accounts.push(pendingAccount);localStorage.setItem('nowa_demo_accounts',JSON.stringify(accounts))}
+ localStorage.setItem('nowa_demo_session',JSON.stringify({identity:pendingAccount.identity,name:pendingAccount.name,method:pendingAccount.method}));
+ document.getElementById('authScreen').style.display='none';document.querySelector('.profile .meta b').textContent=pendingAccount.name;document.querySelector('.profile .avatar').textContent=(pendingAccount.name||'Я').slice(0,1).toUpperCase();
+}
+function logoutDemo(){localStorage.removeItem('nowa_demo_session');document.getElementById('authScreen').style.display='flex';setAuthMode('login');backToAuth()}
+// Server session is restored by the connected-client layer.
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<script>
+/* NOWA connected-client layer: API base can be changed for deployed hosting. */
+const NOWA_API = localStorage.getItem('nowa_api_url') || 'http://localhost:3000';
+let nowaToken = localStorage.getItem('nowa_token') || '';
+let nowaUser = JSON.parse(localStorage.getItem('nowa_user') || 'null');
+let nowaSocket = null;
+let serverContacts = [];
+let serverChatUser = null;
+
+async function api(path, options={}) {
+  const headers = {'Content-Type':'application/json', ...(options.headers||{})};
+  if (nowaToken) headers.Authorization = 'Bearer ' + nowaToken;
+  const response = await fetch(NOWA_API + path, {...options, headers});
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.error || 'Ошибка соединения с сервером NOWA.');
+  return data;
+}
+function saveNowaSession(data) {
+  nowaToken=data.token; nowaUser=data.user;
+  localStorage.setItem('nowa_token',nowaToken);
+  localStorage.setItem('nowa_user',JSON.stringify(nowaUser));
+  localStorage.setItem('nowa_demo_session',JSON.stringify({name:nowaUser.name,identity:nowaUser.email||nowaUser.phone}));
+  document.getElementById('authScreen').style.display='none';
+  document.querySelector('.profile .meta b').textContent=nowaUser.name;
+  document.querySelector('.profile .avatar').textContent=nowaUser.name.slice(0,1).toUpperCase();
+  connectNowaSocket();
+}
+function connectNowaSocket(){
+  if(!nowaToken || typeof io!=='function') return;
+  if(nowaSocket) nowaSocket.disconnect();
+  nowaSocket=io(NOWA_API,{auth:{token:nowaToken}});
+  nowaSocket.on('message:new', async msg=>{
+    if(serverChatUser && (msg.senderId===serverChatUser.id || msg.recipientId===serverChatUser.id)) {
+      await loadServerMessages(serverChatUser);
+    }
+  });
+}
+function currentIdentityPayload(identity,password){
+  if(authMethod==='email') return {email:identity,password};
+  const phone=identity.replace(/[\s()()-]/g,'');
+  return {phone,password};
+}
+window.submitAuth = async function(){
+  const identity=document.getElementById('identityInput').value.trim();
+  const name=document.getElementById('nameInput').value.trim();
+  const password=document.getElementById('passwordInput').value;
+  const err=document.getElementById('authError');
+  if(!identity){err.textContent='Введите email или номер телефона.';return}
+  if(authMode==='register' && name.length<2){err.textContent='Введите имя (минимум 2 символа).';return}
+  if(password.length<10){err.textContent='Для серверного аккаунта пароль должен содержать не менее 10 символов.';return}
+  const payload=currentIdentityPayload(identity,password);
+  if(authMode==='register') payload.name=name;
+  try {
+    const result=await api(authMode==='register'?'/api/auth/register':'/api/auth/login',{method:'POST',body:JSON.stringify(payload)});
+    saveNowaSession(result);
+    err.textContent='';
+  } catch(e){err.textContent=e.message}
+};
+window.verifyAuth = function(){ document.getElementById('verifyError').textContent='Подтверждение кода пока не подключено. Аккаунт создаётся непосредственно через сервер.'; };
+window.backToAuth = function(){document.getElementById('authStep').style.display='block';document.getElementById('verifyStep').style.display='none'};
+window.logoutDemo = function(){
+  if(nowaSocket) nowaSocket.disconnect();
+  nowaToken='';nowaUser=null;serverChatUser=null;
+  ['nowa_token','nowa_user','nowa_demo_session'].forEach(k=>localStorage.removeItem(k));
+  document.getElementById('authScreen').style.display='flex';setAuthMode('login');backToAuth();
+};
+async function restoreServerSession(){
+  if(!nowaToken) return;
+  try { const data=await api('/api/me'); nowaUser=data.user; localStorage.setItem('nowa_user',JSON.stringify(nowaUser));
+    document.getElementById('authScreen').style.display='none';
+    document.querySelector('.profile .meta b').textContent=nowaUser.name;
+    document.querySelector('.profile .avatar').textContent=nowaUser.name.slice(0,1).toUpperCase();
+    connectNowaSocket();
+  } catch(e){logoutDemo()}
+}
+window.renderContacts = async function(){
+ const o=document.getElementById('otherView');
+ o.innerHTML=`<h2>Контакты</h2><p class="sub">Поиск реальных аккаунтов NOWA на сервере.</p>
+ <div class="contact-tools"><input id="contactSearch" placeholder="Имя, email или номер телефона…"><button id="contactSearchBtn">Найти</button></div>
+ <div class="contact-section-title">Мои контакты</div><div id="myContacts" class="contact-list"><div class="empty">Загрузка…</div></div>
+ <div class="contact-section-title">Результаты поиска</div><div id="directoryResults" class="contact-list"><div class="empty">Введите не менее 2 символов для поиска.</div></div>
+ <p class="auth-note">Пользователи и контакты загружаются с сервера NOWA.</p>`;
+ document.getElementById('contactSearchBtn').onclick=searchServerUsers;
+ document.getElementById('contactSearch').addEventListener('keydown',e=>{if(e.key==='Enter')searchServerUsers()});
+ try {const data=await api('/api/contacts');serverContacts=data.contacts;renderServerContactList()}catch(e){document.getElementById('myContacts').innerHTML='<div class="empty">'+escapeHTML(e.message)+'</div>'}
+};
+function renderServerContactList(){
+ const target=document.getElementById('myContacts'); if(!target)return;
+ target.innerHTML=serverContacts.length?serverContacts.map(u=>serverContactCard(u,true)).join(''):'<div class="empty">Контактов пока нет.</div>';
+}
+function serverContactCard(u,added){
+ const label=escapeHTML(u.email||u.phone||'Пользователь NOWA');
+ return `<div class="contact-card"><div class="avatar">${escapeHTML(u.name.slice(0,1).toUpperCase())}</div><div class="details"><b>${escapeHTML(u.name)}</b><small>${label}</small><span class="contact-status">● Аккаунт на сервере</span></div><button onclick="${added?`openServerChat(${u.id},'${escapeHTML(u.name).replace(/'/g,'&#39;')}')`:`addContact(${u.id})`}">${added?'Написать':'Добавить'}</button></div>`;
+}
+async function searchServerUsers(){
+ const q=document.getElementById('contactSearch').value.trim(), target=document.getElementById('directoryResults');
+ if(q.length<2){target.innerHTML='<div class="empty">Введите не менее 2 символов.</div>';return}
+ target.innerHTML='<div class="empty">Поиск…</div>';
+ try {
+  const data=await api('/api/users/search?q='+encodeURIComponent(q));
+  const existing=new Set(serverContacts.map(x=>x.id));
+  target.innerHTML=data.users.length?data.users.map(u=>serverContactCard(u,existing.has(u.id))).join(''):'<div class="empty">Пользователи не найдены.</div>';
+ }catch(e){target.innerHTML='<div class="empty">'+escapeHTML(e.message)+'</div>'}
+}
+window.addContact = async function(id){
+ try {await api('/api/contacts/'+id,{method:'POST'});const d=await api('/api/contacts');serverContacts=d.contacts;renderServerContactList();searchServerUsers()}
+ catch(e){alert(e.message)}
+};
+window.startContactChat = function(id){const u=serverContacts.find(x=>x.id===Number(id));if(u)openServerChat(u.id,u.name)};
+async function openServerChat(id,name){
+ serverChatUser={id:Number(id),name};
+ active=null;
+ document.getElementById('app').classList.add('conversation');
+ document.getElementById('welcome').style.display='none';
+ document.getElementById('otherView').style.display='none';
+ document.getElementById('conversation').style.display='flex';
+ document.getElementById('headAvatar').textContent=name.slice(0,1).toUpperCase();
+ document.getElementById('headName').textContent=name;
+ document.getElementById('headMeta').textContent='Сообщения через сервер NOWA';
+ await loadServerMessages(serverChatUser);
+}
+async function loadServerMessages(user){
+ try{
+  const data=await api('/api/messages/'+user.id);
+  const box=document.getElementById('messages');
+  box.innerHTML=data.messages.map(m=>`<div class="msg ${m.senderId===nowaUser.id?'mine':''}">${escapeHTML(m.body)}<time>${new Date(m.createdAt+'Z').toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</time></div>`).join('')||'<div class="empty">Начните переписку.</div>';
+  box.scrollTop=box.scrollHeight;
+ }catch(e){document.getElementById('messages').innerHTML='<div class="empty">'+escapeHTML(e.message)+'</div>'}
+}
+const oldSendForm=document.getElementById('sendForm');
+oldSendForm.onsubmit=async function(e){
+ e.preventDefault();
+ const input=document.getElementById('messageInput'), body=input.value.trim();
+ if(!body)return;
+ if(!serverChatUser){alert('Выберите контакт, чтобы начать переписку.');return}
+ try{await api('/api/messages/'+serverChatUser.id,{method:'POST',body:JSON.stringify({body})});input.value='';await loadServerMessages(serverChatUser)}
+ catch(err){alert(err.message)}
+};
+document.getElementById('headMeta').textContent='Подключитесь к серверу NOWA';
+restoreServerSession();
+</script>
+
+<script>
+let nowaInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();nowaInstallPrompt=e;});
+async function registerNowaPWA(){if('serviceWorker'in navigator){try{await navigator.serviceWorker.register('./sw.js')}catch(e){console.warn(e)}}}
+function b64u(s){const p='='.repeat((4-s.length%4)%4),r=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))}
+async function enableNowaNotifications(){
+ if(!nowaToken){alert('Сначала войдите в NOWA.');return}
+ if(!('PushManager'in window)||!('Notification'in window)){alert('Push не поддерживается браузером.');return}
+ try{if(await Notification.requestPermission()!=='granted')return;
+ const reg=await navigator.serviceWorker.ready,cfg=await api('/api/push/public-key');
+ let sub=await reg.pushManager.getSubscription();
+ if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(cfg.publicKey)});
+ await api('/api/push/subscribe',{method:'POST',body:JSON.stringify({subscription:sub.toJSON()})});
+ alert('Уведомления NOWA включены на этом устройстве.');
+ }catch(e){alert('Не удалось включить push: '+e.message)}
+}
+function addNowaMobileControls(){
+ const profile=document.querySelector('.profile');if(!profile||document.getElementById('nowaMobileTools'))return;
+ const d=document.createElement('div');d.id='nowaMobileTools';d.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px';
+ d.innerHTML='<button id="nowaInstall" style="font-size:11px;padding:7px;border-radius:9px;background:#28365e;color:#fff">Установить NOWA</button><button id="nowaPush" style="font-size:11px;padding:7px;border-radius:9px;background:#30245c;color:#fff">Включить уведомления</button>';
+ profile.appendChild(d);
+ document.getElementById('nowaInstall').onclick=async()=>{if(nowaInstallPrompt){nowaInstallPrompt.prompt();await nowaInstallPrompt.userChoice;nowaInstallPrompt=null}else alert('iPhone: Safari → Поделиться → На экран «Домой». Android: меню браузера → Установить приложение.')};
+ document.getElementById('nowaPush').onclick=enableNowaNotifications;
+}
+registerNowaPWA();document.addEventListener('DOMContentLoaded',addNowaMobileControls);setTimeout(addNowaMobileControls,800);
+</script>
+<div id="nowaCallPanel" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(5,10,28,.96);color:#fff;align-items:center;justify-content:center;flex-direction:column;padding:20px">
+ <div id="nowaCallTitle" style="font-size:22px;font-weight:700;margin-bottom:10px">Звонок NOWA</div>
+ <div id="nowaCallState" style="color:#aebbe5;margin-bottom:18px">Подключение…</div>
+ <video id="nowaRemoteVideo" autoplay playsinline style="display:none;width:min(90vw,600px);max-height:55vh;background:#101a36;border-radius:18px"></video>
+ <video id="nowaLocalVideo" autoplay muted playsinline style="display:none;width:120px;position:absolute;right:20px;top:20px;border-radius:12px;border:1px solid #6674ad"></video>
+ <div style="display:flex;gap:14px;margin-top:25px">
+  <button onclick="toggleNowaMute()" style="padding:14px 18px;border-radius:14px;background:#29365f;color:white">Микрофон</button>
+  <button onclick="endNowaCall()" style="padding:14px 20px;border-radius:14px;background:#a52d53;color:white">Завершить</button>
+ </div>
+ <div id="nowaIncomingActions" style="display:none;gap:12px;margin-top:18px">
+  <button onclick="acceptNowaCall()" style="padding:13px 20px;border-radius:12px;background:#26865f;color:white">Принять</button>
+  <button onclick="rejectNowaCall()" style="padding:13px 20px;border-radius:12px;background:#a52d53;color:white">Отклонить</button>
+ </div>
+</div>
+<script>
+let nowaPeer=null, nowaLocalStream=null, nowaCallPeerId=null, nowaCallMode='audio', nowaIncomingOffer=null, nowaPendingCandidates=[];
+function callPanel(show){document.getElementById('nowaCallPanel').style.display=show?'flex':'none'}
+function callState(t){document.getElementById('nowaCallState').textContent=t}
+function callReset(){
+ if(nowaPeer){nowaPeer.ontrack=null;nowaPeer.onicecandidate=null;nowaPeer.close();nowaPeer=null}
+ if(nowaLocalStream)nowaLocalStream.getTracks().forEach(t=>t.stop());
+ nowaLocalStream=null;nowaCallPeerId=null;nowaIncomingOffer=null;nowaPendingCandidates=[];
+ document.getElementById('nowaRemoteVideo').srcObject=null;document.getElementById('nowaLocalVideo').srcObject=null;
+ document.getElementById('nowaRemoteVideo').style.display='none';document.getElementById('nowaLocalVideo').style.display='none';
+ document.getElementById('nowaIncomingActions').style.display='none';
+}
+async function getNowaMedia(mode){
+ return navigator.mediaDevices.getUserMedia({audio:true,video:mode==='video'});
+}
+function makeNowaPeer(){
+ nowaPeer=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+ nowaLocalStream.getTracks().forEach(t=>nowaPeer.addTrack(t,nowaLocalStream));
+ nowaPeer.ontrack=e=>{const v=document.getElementById('nowaRemoteVideo');v.srcObject=e.streams[0];v.style.display=nowaCallMode==='video'?'block':'none'};
+ nowaPeer.onicecandidate=e=>{if(e.candidate&&nowaSocket&&nowaCallPeerId)nowaSocket.emit('call:signal',{to:nowaCallPeerId,candidate:e.candidate})};
+ nowaPeer.onconnectionstatechange=()=>{if(nowaPeer&&['connected','connecting','failed'].includes(nowaPeer.connectionState))callState(nowaPeer.connectionState==='connected'?'Соединение установлено':nowaPeer.connectionState==='failed'?'Не удалось соединиться. Проверьте сеть или TURN-сервер.':'Соединяем…')};
+}
+async function startNowaCall(mode){
+ if(!serverChatUser||!nowaSocket||!nowaSocket.connected){alert('Откройте чат с контактом и подключитесь к серверу.');return}
+ if(!navigator.mediaDevices?.getUserMedia){alert('Звонки требуют HTTPS и разрешения на микрофон/камеру.');return}
+ callReset();nowaCallPeerId=serverChatUser.id;nowaCallMode=mode;
+ document.getElementById('nowaCallTitle').textContent=(mode==='video'?'Видеозвонок: ':'Голосовой звонок: ')+serverChatUser.name;
+ callState('Вызов…');callPanel(true);
+ try{
+  nowaLocalStream=await getNowaMedia(mode);
+  if(mode==='video'){const v=document.getElementById('nowaLocalVideo');v.srcObject=nowaLocalStream;v.style.display='block'}
+  makeNowaPeer();
+  const offer=await nowaPeer.createOffer();await nowaPeer.setLocalDescription(offer);
+  nowaSocket.emit('call:invite',{to:nowaCallPeerId,mode,offer});
+ }catch(e){callState('Не удалось начать звонок: '+e.message);setTimeout(()=>{callPanel(false);callReset()},2200)}
+}
+async function acceptNowaCall(){
+ if(!nowaIncomingOffer||!nowaCallPeerId)return;
+ document.getElementById('nowaIncomingActions').style.display='none';
+ try{
+  nowaLocalStream=await getNowaMedia(nowaCallMode);
+  if(nowaCallMode==='video'){const v=document.getElementById('nowaLocalVideo');v.srcObject=nowaLocalStream;v.style.display='block'}
+  makeNowaPeer();await nowaPeer.setRemoteDescription(new RTCSessionDescription(nowaIncomingOffer));
+  for(const c of nowaPendingCandidates)await nowaPeer.addIceCandidate(new RTCIceCandidate(c));nowaPendingCandidates=[];
+  const answer=await nowaPeer.createAnswer();await nowaPeer.setLocalDescription(answer);
+  nowaSocket.emit('call:accept',{to:nowaCallPeerId,answer});callState('Соединяем…');
+ }catch(e){callState('Ошибка звонка: '+e.message);endNowaCall()}
+}
+function rejectNowaCall(){if(nowaSocket&&nowaCallPeerId)nowaSocket.emit('call:reject',{to:nowaCallPeerId});callPanel(false);callReset()}
+function endNowaCall(){if(nowaSocket&&nowaCallPeerId)nowaSocket.emit('call:end',{to:nowaCallPeerId});callPanel(false);callReset()}
+function toggleNowaMute(){if(nowaLocalStream)nowaLocalStream.getAudioTracks().forEach(t=>t.enabled=!t.enabled)}
+if(typeof connectNowaSocket==='function'){
+ const oldConnectNowaSocket=connectNowaSocket;
+ connectNowaSocket=function(){
+  oldConnectNowaSocket();
+  if(!nowaSocket)return;
+  nowaSocket.on('call:incoming',data=>{
+   callReset();nowaCallPeerId=data.from;nowaCallMode=data.mode;nowaIncomingOffer=data.offer;
+   document.getElementById('nowaCallTitle').textContent=(data.mode==='video'?'Видеозвонок от ':'Звонок от ')+(data.name||'пользователя NOWA');
+   callState('Входящий вызов');document.getElementById('nowaIncomingActions').style.display='flex';callPanel(true);
+  });
+  nowaSocket.on('call:accepted',async data=>{
+   if(!nowaPeer)return;
+   await nowaPeer.setRemoteDescription(new RTCSessionDescription(data.answer));
+   for(const c of nowaPendingCandidates)await nowaPeer.addIceCandidate(new RTCIceCandidate(c));nowaPendingCandidates=[];
+   callState('Соединяем…');
+  });
+  nowaSocket.on('call:signal',async data=>{
+   if(!nowaPeer||!data.candidate)return;
+   if(nowaPeer.remoteDescription)await nowaPeer.addIceCandidate(new RTCIceCandidate(data.candidate));else nowaPendingCandidates.push(data.candidate);
+  });
+  nowaSocket.on('call:rejected',()=>{callState('Вызов отклонён');setTimeout(()=>{callPanel(false);callReset()},1400)});
+  nowaSocket.on('call:ended',()=>{callState('Звонок завершён');setTimeout(()=>{callPanel(false);callReset()},1000)});
+  nowaSocket.on('call:unavailable',()=>{callState('Пользователь недоступен');setTimeout(()=>{callPanel(false);callReset()},1800)});
+ };
+}
+</script>
+</body></html>
