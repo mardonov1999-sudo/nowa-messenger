@@ -219,6 +219,7 @@ function currentIdentityPayload(identity,password){
   return {phone,password};
 }
 window.submitAuth = async function(){
+  console.log('NOWA: серверная регистрация подключена');
   const identity=document.getElementById('identityInput').value.trim();
   const name=document.getElementById('nameInput').value.trim();
   const password=document.getElementById('passwordInput').value;
