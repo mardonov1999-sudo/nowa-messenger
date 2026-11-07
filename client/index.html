@@ -61,7 +61,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;color:inherit}.app{max-
    <div id="nameWrap"><label class="auth-field">Ваше имя</label><input class="auth-input" id="nameInput" placeholder="Например, Алексей" autocomplete="name"></div>
    <label class="auth-field">Пароль</label><input class="auth-input" id="passwordInput" type="password" placeholder="Не менее 8 символов" autocomplete="new-password">
    <div class="auth-error" id="authError"></div><button class="auth-primary" id="authContinue" onclick="submitAuth()">Создать аккаунт</button>
-   <p class="auth-note">Демо-режим: настоящая отправка SMS и писем пока не подключена. Не используйте настоящий пароль.</p>
+  <p class="auth-note">Аккаунт создаётся на сервере NOWA. Подтверждение по SMS и электронной почте пока не подключено. Используйте пароль не менее 10 символов.</p>
   </div>
   <div id="verifyStep" style="display:none">
    <button class="auth-back" onclick="backToAuth()">← Назад</button><h1>Подтвердите контакт</h1><p class="auth-sub" id="verifyDescription">Введите демонстрационный код.</p>
