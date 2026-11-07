@@ -162,19 +162,6 @@ renderChats();
 let authMode='register',authMethod='phone',pendingAccount=null;
 function setAuthMode(mode){authMode=mode;document.getElementById('registerTab').classList.toggle('active',mode==='register');document.getElementById('loginTab').classList.toggle('active',mode==='login');document.getElementById('nameWrap').style.display=mode==='register'?'block':'none';document.getElementById('authContinue').textContent=mode==='register'?'Создать аккаунт':'Войти';document.getElementById('authError').textContent=''}
 function setAuthMethod(method){authMethod=method;document.getElementById('phoneTab').classList.toggle('active',method==='phone');document.getElementById('emailTab').classList.toggle('active',method==='email');document.getElementById('identityLabel').textContent=method==='phone'?'Номер телефона':'Электронная почта';document.getElementById('identityInput').placeholder=method==='phone'?'+7 900 000-00-00':'name@example.com';document.getElementById('identityInput').type=method==='email'?'email':'tel';document.getElementById('authError').textContent=''}
-function submitAuth(){
- const identity=document.getElementById('identityInput').value.trim(),name=document.getElementById('nameInput').value.trim(),password=document.getElementById('passwordInput').value,err=document.getElementById('authError');
- if(!identity){err.textContent='Введите номер телефона или электронную почту.';return}
- if(authMethod==='email'&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(identity)){err.textContent='Проверьте адрес электронной почты.';return}
- if(authMethod==='phone'&&identity.replace(/\\D/g,'').length<7){err.textContent='Проверьте номер телефона.';return}
- if(authMode==='register'&&!name){err.textContent='Введите ваше имя.';return}
- if(password.length<8){err.textContent='Пароль должен содержать не менее 8 символов.';return}
- const accounts=JSON.parse(localStorage.getItem('nowa_demo_accounts')||'[]');
- if(authMode==='register'&&accounts.some(a=>a.identity.toLowerCase()===identity.toLowerCase())){err.textContent='Этот контакт уже зарегистрирован. Попробуйте войти.';return}
- if(authMode==='login'&&!accounts.some(a=>a.identity.toLowerCase()===identity.toLowerCase()&&a.password===password)){err.textContent='Аккаунт не найден или пароль неверный. Для демо сначала зарегистрируйтесь.';return}
- pendingAccount={identity,name:authMode==='register'?name:(accounts.find(a=>a.identity.toLowerCase()===identity.toLowerCase())||{}).name||'Пользователь',password,method:authMethod,mode:authMode};
- document.getElementById('authStep').style.display='none';document.getElementById('verifyStep').style.display='block';document.getElementById('verifyDescription').textContent='Демо-подтверждение для '+identity;
-}
 function backToAuth(){document.getElementById('authStep').style.display='block';document.getElementById('verifyStep').style.display='none';document.getElementById('verifyError').textContent=''}
 function verifyAuth(){
  if(document.getElementById('codeInput').value.trim()!=='123456'){document.getElementById('verifyError').textContent='Неверный код. Для демо введите 123456.';return}
