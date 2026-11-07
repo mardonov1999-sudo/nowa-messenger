@@ -178,7 +178,11 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigato
 <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 <script>
 /* NOWA connected-client layer: API base can be changed for deployed hosting. */
-const NOWA_API = localStorage.getItem('nowa_api_url') || window.location.origin;
+const NOWA_API = window.location.origin;
+window.addEventListener('error', function(e) {
+  const box = document.getElementById('authError');
+  if (box) box.textContent = 'Ошибка NOWA: ' + e.message;
+});
 let nowaToken = localStorage.getItem('nowa_token') || '';
 let nowaUser = JSON.parse(localStorage.getItem('nowa_user') || 'null');
 let nowaSocket = null;
