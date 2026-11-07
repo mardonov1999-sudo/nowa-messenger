@@ -59,6 +59,7 @@ app.use(helmet());
 app.use(cors({ origin: allowedOrigin, credentials: true }));
 app.use(express.json({ limit: "32kb" }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
+app.use(express.static(path.join(__dirname, "../client")));
 
 const io = new Server(server, { cors: { origin: allowedOrigin, methods: ["GET", "POST"] } });
 const online = new Map();
