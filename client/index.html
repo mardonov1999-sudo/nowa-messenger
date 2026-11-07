@@ -176,7 +176,7 @@ window.setAuthMethod = function(method) {
     method === 'email' ? 'email' : 'tel';
 
   document.getElementById('authError').textContent = '';
-};{authMode=mode;document.getElementById('registerTab').classList.toggle('active',mode==='register');document.getElementById('loginTab').classList.toggle('active',mode==='login');document.getElementById('nameWrap').style.display=mode==='register'?'block':'none';document.getElementById('authContinue').textContent=mode==='register'?'Создать аккаунт':'Войти';document.getElementById('authError').textContent=''}
+};
 function setAuthMethod(method){authMethod=method;document.getElementById('phoneTab').classList.toggle('active',method==='phone');document.getElementById('emailTab').classList.toggle('active',method==='email');document.getElementById('identityLabel').textContent=method==='phone'?'Номер телефона':'Электронная почта';document.getElementById('identityInput').placeholder=method==='phone'?'+7 900 000-00-00':'name@example.com';document.getElementById('identityInput').type=method==='email'?'email':'tel';document.getElementById('authError').textContent=''}
 function backToAuth(){document.getElementById('authStep').style.display='block';document.getElementById('verifyStep').style.display='none';document.getElementById('verifyError').textContent=''}
 function verifyAuth(){
