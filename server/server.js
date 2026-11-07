@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS push_subscriptions(id INTEGER PRIMARY KEY AUTOINCREME
 
 if(process.env.VAPID_PUBLIC_KEY&&process.env.VAPID_PRIVATE_KEY) webpush.setVapidDetails(process.env.VAPID_SUBJECT||"mailto:admin@example.com",process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const allowedOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 app.use(helmet());
