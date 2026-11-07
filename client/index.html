@@ -191,7 +191,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigato
 <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 <script>
 /* NOWA connected-client layer: API base can be changed for deployed hosting. */
-const NOWA_API = localStorage.getItem('nowa_api_url') || 'http://localhost:3000';
+const NOWA_API = localStorage.getItem('nowa_api_url') || window.location.origin;
 let nowaToken = localStorage.getItem('nowa_token') || '';
 let nowaUser = JSON.parse(localStorage.getItem('nowa_user') || 'null');
 let nowaSocket = null;
