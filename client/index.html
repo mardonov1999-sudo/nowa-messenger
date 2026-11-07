@@ -56,7 +56,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;color:inherit}.app{max-
    <h1>Добро пожаловать</h1><p class="auth-sub">Создайте аккаунт NOWA или войдите, чтобы продолжить.</p>
    <div class="auth-switch"><button id="registerTab" class="active" onclick="setAuthMode('register')">Регистрация</button><button id="loginTab" onclick="setAuthMode('login')">Вход</button></div>
    <label class="auth-field">Как зарегистрироваться?</label>
-   <div class="auth-switch"><button id="phoneTab" class="active" onclick="setAuthMethod('phone')">Телефон</button><button id="emailTab" onclick="setAuthMethod('email')">Эл. почта</button></div>
+   <div class="auth-switch"><button id="phoneTab" class="active" type="button" onclick="window.setAuthMethod('phone')">Телефон</button><button id="emailTab" type="button" onclick="window.setAuthMethod('email')">Эл. почта</button></div>
    <label class="auth-field" id="identityLabel">Номер телефона</label><input class="auth-input" id="identityInput" placeholder="+7 900 000-00-00" autocomplete="username">
    <div id="nameWrap"><label class="auth-field">Ваше имя</label><input class="auth-input" id="nameInput" placeholder="Например, Алексей" autocomplete="name"></div>
    <label class="auth-field">Пароль</label><input class="auth-input" id="passwordInput" type="password" placeholder="Не менее 8 символов" autocomplete="new-password">
