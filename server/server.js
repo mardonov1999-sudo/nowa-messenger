@@ -1,213 +1,332 @@
-require("dotenv").config();
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const Database = require("better-sqlite3");
-const { Server } = require("socket.io");
-const webpush = require("web-push");
-const path = require("path");
-const fs = require("fs");
+ 'use strict';
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
-const PORT = Number(process.env.PORT || 3000);
-const JWT_SECRET = process.env.JWT_SECRET || "";
-if (JWT_SECRET.length < 32) {
-  console.error("Set JWT_SECRET in .env (at least 32 characters).");
-  process.exit(1);
+const PORT = process.env.PORT || 3000;
+const DATA_FILE = path.join(__dirname, 'data.json');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const SECRET = process.env.NOWA_SECRET || crypto.randomBytes(32).toString('hex');
+
+// ---------- storage ----------
+let db = { users: [], chats: [], messages: [], receipts: {} };
+try { db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (_) {}
+const save = () => fs.writeFileSync(DATA_FILE, JSON.stringify(db));
+
+const uid = () => crypto.randomUUID();
+const now = () => Date.now();
+
+// ---------- tokens (HMAC) ----------
+function sign(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const mac = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
+  return body + '.' + mac;
 }
-
-const dbFile = process.env.DATABASE_FILE || "./data/nowa.sqlite";
-fs.mkdirSync(path.dirname(path.resolve(dbFile)), { recursive: true });
-const db = new Database(dbFile);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
-db.exec(`
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  email TEXT UNIQUE COLLATE NOCASE,
-  phone TEXT UNIQUE,
-  password_hash TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS contacts (
-  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  contact_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY(owner_id, contact_id),
-  CHECK(owner_id <> contact_id)
-);
-CREATE TABLE IF NOT EXISTS messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  sender_id INTEGER NOT NULL REFERENCES users(id),
-  recipient_id INTEGER NOT NULL REFERENCES users(id),
-  body TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages(sender_id, recipient_id, id);
-CREATE TABLE IF NOT EXISTS push_subscriptions(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,endpoint TEXT NOT NULL UNIQUE,subscription_json TEXT NOT NULL);
-`);
-
-if(process.env.VAPID_PUBLIC_KEY&&process.env.VAPID_PRIVATE_KEY) webpush.setVapidDetails(process.env.VAPID_SUBJECT||"mailto:admin@example.com",process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
-const app = express();
-app.set('trust proxy', 1);
-const server = http.createServer(app);
-const allowedOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: allowedOrigin, credentials: true }));
-app.use(express.json({ limit: "32kb" }));
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
-app.use(express.static(path.join(__dirname, "../client")));
-
-const io = new Server(server, { cors: { origin: allowedOrigin, methods: ["GET", "POST"] } });
-const online = new Map();
-
-function tokenFor(user) {
-  return jwt.sign({ sub: String(user.id) }, JWT_SECRET, { expiresIn: "7d", issuer: "nowa" });
-}
-function auth(req, res, next) {
-  const value = req.headers.authorization || "";
-  const token = value.startsWith("Bearer ") ? value.slice(7) : "";
+function verify(token) {
+  if (!token) return null;
+  const [body, mac] = token.split('.');
+  if (!body || !mac) return null;
+  const expect = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
+  if (!crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expect))) return null;
   try {
-    const payload = jwt.verify(token, JWT_SECRET, { issuer: "nowa" });
-    req.userId = Number(payload.sub);
-    if (!Number.isSafeInteger(req.userId)) throw new Error("bad subject");
-    next();
-  } catch {
-    res.status(401).json({ error: "Требуется действительный вход в NOWA." });
-  }
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    if (payload.exp && payload.exp < now()) return null;
+    return payload;
+  } catch { return null; }
 }
-function publicUser(row) {
-  return { id: row.id, name: row.name, email: row.email, phone: row.phone };
-}
-function isValidIdentity(email, phone) {
-  if (email) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  if (phone) return /^\+[1-9]\d{7,14}$/.test(phone);
-  return false;
-}
-function roomFor(a, b) { return [Number(a), Number(b)].sort((x,y)=>x-y).join(":"); }
+const makeToken = (userId) => sign({ uid: userId, exp: now() + 1000 * 60 * 60 * 24 * 30 });
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "NOWA API" }));
+function hashPassword(pw, salt = crypto.randomBytes(16).toString('hex')) {
+  return salt + ':' + crypto.scryptSync(pw, salt, 32).toString('hex');
+}
+function checkPassword(pw, stored) {
+  const [salt, hash] = String(stored).split(':');
+  const test = crypto.scryptSync(pw, salt, 32).toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(test, 'hex'));
+}
 
-app.post("/api/auth/register", rateLimit({ windowMs: 60*60*1000, limit: 10 }), async (req, res) => {
+// ---------- http helpers ----------
+function send(res, code, data, headers = {}) {
+  const body = typeof data === 'string' ? data : JSON.stringify(data);
+  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', ...headers });
+  res.end(body);
+}
+function readBody(req, limit = 25 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0; const chunks = [];
+    req.on('data', c => { size += c.length; if (size > limit) { reject(new Error('too large')); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {}); } catch (e) { reject(e); } });
+    req.on('error', reject);
+  });
+}
+function authUser(req) {
+  const h = req.headers.authorization || '';
+  const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+  const p = verify(token);
+  if (!p) return null;
+  return db.users.find(u => u.id === p.uid) || null;
+}
+function publicUser(u) {
+  if (!u) return null;
+  return { id: u.id, name: u.name, phone: u.phone, email: u.email, about: u.about || '', avatar: u.avatar || '', lastSeen: u.lastSeen || 0 };
+}
+function chatView(chat, meId) {
+  const members = chat.members.map(id => publicUser(db.users.find(u => u.id === id))).filter(Boolean);
+  const last = [...db.messages].reverse().find(m => m.chatId === chat.id);
+  const unread = db.messages.filter(m => m.chatId === chat.id && m.senderId !== meId).filter(m => {
+    const r = db.receipts[m.id];
+    return !(r && r.read && r.read.includes(meId));
+  }).length;
+  return { id: chat.id, name: chat.name, isGroup: !!chat.isGroup, members, avatar: chat.avatar || '', lastMessage: last || null, unread };
+}
+
+// ---------- SSE ----------
+const clients = new Map(); // userId -> Set(res)
+function broadcast(userIds, event, data) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  userIds.forEach(id => {
+    const set = clients.get(id);
+    if (set) set.forEach(res => { try { res.write(payload); } catch (_) {} });
+  });
+}
+function broadcastChat(chat, event, data) {
+  broadcast(chat.members, event, data);
+}
+
+// ---------- routes ----------
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+  const method = req.method;
+  const p = url.pathname;
+
+  // CORS для локальной разработки
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
   try {
-    const name = String(req.body.name || "").trim().slice(0, 40);
-    const email = req.body.email ? String(req.body.email).trim().toLowerCase() : null;
-    const phone = req.body.phone ? String(req.body.phone).trim() : null;
-    const password = String(req.body.password || "");
-    if (name.length < 2 || !isValidIdentity(email, phone) || (email && phone) || password.length < 10 || password.length > 128) {
-      return res.status(400).json({ error: "Укажите имя, один корректный email или телефон и пароль от 10 символов." });
+    // ---- static ----
+    if (method === 'GET' && (p === '/' || p.startsWith('/public') || p === '/index.html')) {
+      const file = path.join(PUBLIC_DIR, p === '/' ? 'index.html' : p.replace(/^\/public/, ''));
+      if (!file.startsWith(PUBLIC_DIR) || !fs.existsSync(file)) return send(res, 404, { error: 'not found' });
+      const ext = path.extname(file);
+      const type = ext === '.html' ? 'text/html' : ext === '.js' ? 'text/javascript' : ext === '.css' ? 'text/css' : 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': type + '; charset=utf-8' });
+      return fs.createReadStream(file).pipe(res);
     }
-    const hash = await bcrypt.hash(password, 12);
-    const info = db.prepare("INSERT INTO users(name,email,phone,password_hash) VALUES(?,?,?,?)").run(name,email,phone,hash);
-    const user = db.prepare("SELECT id,name,email,phone FROM users WHERE id=?").get(info.lastInsertRowid);
-    res.status(201).json({ token: tokenFor(user), user: publicUser(user) });
+
+    // ---- auth ----
+    if (method === 'POST' && p === '/api/auth/register') {
+      const b = await readBody(req);
+      const identity = (b.email || b.phone || '').toString().trim();
+      const password = (b.password || '').toString();
+      const name = (b.name || '').toString().trim();
+      if (!identity || !password || password.length < 10) return send(res, 400, { error: 'bad input' });
+      if (db.users.some(u => u.email === b.email || u.phone === b.phone)) return send(res, 409, { error: 'already exists' });
+      const user = { id: uid(), name: name || identity, email: b.email || '', phone: b.phone || '', password: hashPassword(password), about: '', avatar: '', createdAt: now(), lastSeen: now() };
+      db.users.push(user); save();
+      return send(res, 200, { token: makeToken(user.id), user: publicUser(user) });
+    }
+
+    if (method === 'POST' && p === '/api/auth/login') {
+      const b = await readBody(req);
+      const u = db.users.find(x => (b.email && x.email === b.email) || (b.phone && x.phone === b.phone));
+      if (!u || !checkPassword(b.password || '', u.password)) return send(res, 401, { error: 'invalid credentials' });
+      u.lastSeen = now(); save();
+      return send(res, 200, { token: makeToken(u.id), user: publicUser(u) });
+    }
+
+    // ---- auth required ниже ----
+    const me = authUser(req);
+    if (p.startsWith('/api/') && p !== '/api/auth/logout') {
+      if (!me) return send(res, 401, { error: 'unauthorized' });
+    }
+
+    if (method === 'POST' && p === '/api/auth/logout') return send(res, 200, { ok: true });
+
+    if (method === 'GET' && p === '/api/me') return send(res, 200, { user: publicUser(me) });
+
+    if (method === 'PATCH' && p === '/api/me') {
+      const b = await readBody(req);
+      if (typeof b.name === 'string' && b.name.trim().length >= 2) me.name = b.name.trim();
+      if (typeof b.about === 'string') me.about = b.about.slice(0, 200);
+      if (typeof b.avatar === 'string') me.avatar = b.avatar;
+      save(); return send(res, 200, { user: publicUser(me) });
+    }
+
+    // ---- users search ----
+    if (method === 'GET' && p === '/api/users') {
+      const q = (url.searchParams.get('q') || '').toLowerCase();
+      const list = db.users.filter(u => u.id !== me.id && (u.name.toLowerCase().includes(q) || (u.phone || '').includes(q))).slice(0, 20).map(publicUser);
+      return send(res, 200, list);
+    }
+
+    // ---- chats ----
+    if (method === 'GET' && p === '/api/chats') {
+      const list = db.chats.filter(c => c.members.includes(me.id)).map(c => chatView(c, me.id));
+      return send(res, 200, list);
+    }
+
+    if (method === 'POST' && p === '/api/chats') {
+      const b = await readBody(req);
+      const isGroup = !!b.isGroup;
+      const members = Array.from(new Set([me.id, ...(Array.isArray(b.members) ? b.members : [])]));
+      if (!isGroup && members.length !== 2) return send(res, 400, { error: 'direct chat needs one peer' });
+      // для личного чата вернуть существующий
+      if (!isGroup) {
+        const peer = members.find(id => id !== me.id);
+        const existing = db.chats.find(c => !c.isGroup && c.members.length === 2 && c.members.includes(me.id) && c.members.includes(peer));
+        if (existing) return send(res, 200, chatView(existing, me.id));
+      }
+      const chat = { id: uid(), name: b.name || (isGroup ? 'Группа' : ''), isGroup, members, avatar: b.avatar || '', createdBy: me.id, createdAt: now(), archivedBy: [], mutedBy: [] };
+      db.chats.push(chat); save();
+      broadcastChat(chat, 'chat:new', chatView(chat, me.id));
+      return send(res, 200, chatView(chat, me.id));
+    }
+
+    const chatMatch = p.match(/^\/api\/chats\/([^/]+)$/);
+    if (chatMatch && method === 'GET') {
+      const c = db.chats.find(x => x.id === chatMatch[1] && x.members.includes(me.id));
+      if (!c) return send(res, 404, { error: 'not found' });
+      return send(res, 200, chatView(c, me.id));
+    }
+    if (chatMatch && method === 'PATCH') {
+      const c = db.chats.find(x => x.id === chatMatch[1] && x.members.includes(me.id));
+      if (!c) return send(res, 404, { error: 'not found' });
+      const b = await readBody(req);
+      if (typeof b.name === 'string' && b.name.trim()) c.name = b.name.trim();
+      if (typeof b.avatar === 'string') c.avatar = b.avatar;
+      if (typeof b.archived === 'boolean') c.archivedBy = b.archived ? Array.from(new Set([...c.archivedBy, me.id])) : c.archivedBy.filter(id => id !== me.id);
+      if (typeof b.muted === 'boolean') c.mutedBy = b.muted ? Array.from(new Set([...c.mutedBy, me.id])) : c.mutedBy.filter(id => id !== me.id);
+      if (Array.isArray(b.addMembers)) c.members = Array.from(new Set([...c.members, ...b.addMembers]));
+      if (Array.isArray(b.removeMembers)) c.members = c.members.filter(id => !b.removeMembers.includes(id));
+      save(); broadcastChat(c, 'chat:update', chatView(c, me.id));
+      return send(res, 200, chatView(c, me.id));
+    }
+    if (chatMatch && method === 'DELETE') {
+      const idx = db.chats.findIndex(x => x.id === chatMatch[1] && x.members.includes(me.id));
+      if (idx < 0) return send(res, 404, { error: 'not found' });
+      const [c] = db.chats.splice(idx, 1);
+      db.messages = db.messages.filter(m => m.chatId !== c.id);
+      save(); broadcastChat(c, 'chat:delete', { id: c.id });
+      return send(res, 200, { ok: true });
+    }
+
+    // ---- messages ----
+    if (method === 'GET' && p.match(/^\/api\/chats\/[^/]+\/messages$/)) {
+      const id = p.split('/')[3];
+      const c = db.chats.find(x => x.id === id && x.members.includes(me.id));
+      if (!c) return send(res, 404, { error: 'not found' });
+      const before = Number(url.searchParams.get('before') || 0);
+      const limit = Math.min(100, Number(url.searchParams.get('limit') || 50));
+      let list = db.messages.filter(m => m.chatId === id);
+      if (before) list = list.filter(m => m.ts < before);
+      list = list.sort((a, b) => a.ts - b.ts).slice(-limit);
+      return send(res, 200, { messages: list, hasMore: db.messages.filter(m => m.chatId === id).length > list.length });
+    }
+
+    if (method === 'POST' && p.match(/^\/api\/chats\/[^/]+\/messages$/)) {
+      const id = p.split('/')[3];
+      const c = db.chats.find(x => x.id === id && x.members.includes(me.id));
+      if (!c) return send(res, 404, { error: 'not found' });
+      const b = await readBody(req);
+      const msg = {
+        id: uid(), chatId: id, senderId: me.id, text: String(b.text || '').slice(0, 4000),
+        type: b.type || 'text', attachment: b.attachment || null,
+        replyTo: b.replyTo || null, ts: now(), editedAt: null, deletedAt: null, reactions: {}
+      };
+      db.messages.push(msg); save();
+      broadcastChat(c, 'message:new', msg);
+      return send(res, 200, { message: msg });
+    }
+
+    const msgMatch = p.match(/^\/api\/messages\/([^/]+)$/);
+    if (msgMatch) {
+      const m = db.messages.find(x => x.id === msgMatch[1]);
+      if (!m) return send(res, 404, { error: 'not found' });
+      const c = db.chats.find(x => x.id === m.chatId);
+      if (!c || !c.members.includes(me.id)) return send(res, 403, { error: 'forbidden' });
+      if (method === 'PATCH') {
+        if (m.senderId !== me.id) return send(res, 403, { error: 'forbidden' });
+        const b = await readBody(req);
+        if (typeof b.text === 'string') { m.text = b.text.slice(0, 4000); m.editedAt = now(); }
+        save(); broadcastChat(c, 'message:update', m);
+        return send(res, 200, { message: m });
+      }
+      if (method === 'DELETE') {
+        if (m.senderId !== me.id) return send(res, 403, { error: 'forbidden' });
+        m.deletedAt = now(); m.text = ''; save();
+        broadcastChat(c, 'message:update', m);
+        return send(res, 200, { ok: true });
+      }
+    }
+
+    const reactMatch = p.match(/^\/api\/messages\/([^/]+)\/reactions$/);
+    if (reactMatch && method === 'POST') {
+      const m = db.messages.find(x => x.id === reactMatch[1]);
+      if (!m) return send(res, 404, { error: 'not found' });
+      const c = db.chats.find(x => x.id === m.chatId);
+      if (!c || !c.members.includes(me.id)) return send(res, 403, { error: 'forbidden' });
+      const b = await readBody(req);
+      const emoji = String(b.emoji || '').slice(0, 8);
+      m.reactions = m.reactions || {};
+      const set = new Set(m.reactions[emoji] || []);
+      if (set.has(me.id)) set.delete(me.id); else set.add(me.id);
+      m.reactions[emoji] = [...set];
+      if (!m.reactions[emoji].length) delete m.reactions[emoji];
+      save(); broadcastChat(c, 'message:update', m);
+      return send(res, 200, { message: m });
+    }
+
+    // ---- receipts ----
+    if (method === 'POST' && p === '/api/receipts') {
+      const b = await readBody(req);
+      const chatId = b.chatId;
+      const kind = b.kind === 'read' ? 'read' : 'delivered';
+      const c = db.chats.find(x => x.id === chatId && x.members.includes(me.id));
+      if (!c) return send(res, 404, { error: 'not found' });
+      const ids = db.messages.filter(m => m.chatId === chatId).map(m => m.id);
+      ids.forEach(id => {
+        const r = db.receipts[id] = db.receipts[id] || { delivered: [], read: [] };
+        if (kind === 'read') { if (!r.read.includes(me.id)) r.read.push(me.id); }
+        if (!r.delivered.includes(me.id)) r.delivered.push(me.id);
+      });
+      save();
+      broadcastChat(c, 'receipts', { chatId, kind, by: me.id, ts: now() });
+      return send(res, 200, { ok: true });
+    }
+
+    // ---- typing ----
+    if (method === 'POST' && p === '/api/typing') {
+      const b = await readBody(req);
+      const c = db.chats.find(x => x.id === b.chatId && x.members.includes(me.id));
+      if (!c) return send(res, 404, { error: 'not found' });
+      broadcast(c.members.filter(id => id !== me.id), 'typing', { chatId: c.id, userId: me.id, name: me.name });
+      return send(res, 200, { ok: true });
+    }
+
+    // ---- contacts (все пользователи, кроме меня) ----
+    if (method === 'GET' && p === '/api/contacts') {
+      return send(res, 200, db.users.filter(u => u.id !== me.id).map(publicUser));
+    }
+
+    // ---- SSE stream ----
+    if (method === 'GET' && p === '/api/stream') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+      res.write(': connected\n\n');
+      const set = clients.get(me.id) || new Set();
+      set.add(res); clients.set(me.id, set);
+      const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch (_) {} }, 20000);
+      req.on('close', () => { clearInterval(ping); set.delete(res); if (!set.size) clients.delete(me.id); });
+      return;
+    }
+
+    send(res, 404, { error: 'not found' });
   } catch (e) {
-    if (String(e.code || "").includes("SQLITE_CONSTRAINT")) return res.status(409).json({ error: "Этот email или номер уже зарегистрирован." });
-    res.status(500).json({ error: "Не удалось создать аккаунт." });
+    send(res, 500, { error: e.message || 'server error' });
   }
 });
 
-app.post("/api/auth/login", rateLimit({ windowMs: 15*60*1000, limit: 10 }), async (req, res) => {
-  const email = req.body.email ? String(req.body.email).trim().toLowerCase() : null;
-  const phone = req.body.phone ? String(req.body.phone).trim() : null;
-  const password = String(req.body.password || "");
-  if ((email && phone) || (!email && !phone)) return res.status(400).json({ error: "Введите email или телефон." });
-  const user = db.prepare("SELECT * FROM users WHERE " + (email ? "email=?" : "phone=?")).get(email || phone);
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: "Неверные данные для входа." });
-  res.json({ token: tokenFor(user), user: publicUser(user) });
-});
-
-app.get("/api/me", auth, (req,res) => {
-  const user = db.prepare("SELECT id,name,email,phone FROM users WHERE id=?").get(req.userId);
-  if (!user) return res.status(404).json({ error: "Аккаунт не найден." });
-  res.json({ user: publicUser(user) });
-});
-
-app.get("/api/users/search", auth, (req,res) => {
-  const q = String(req.query.q || "").trim().slice(0,60);
-  if (q.length < 2) return res.json({ users: [] });
-  const like = "%" + q.replace(/[\\%_]/g, "\\$&") + "%";
-  const rows = db.prepare(`SELECT id,name,email,phone FROM users
-    WHERE id<>? AND (name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\')
-    ORDER BY name LIMIT 30`).all(req.userId,like,like,like);
-  res.json({ users: rows.map(publicUser) });
-});
-
-app.post("/api/contacts/:id", auth, (req,res) => {
-  const id = Number(req.params.id);
-  if (!Number.isSafeInteger(id) || id === req.userId) return res.status(400).json({ error: "Некорректный контакт." });
-  if (!db.prepare("SELECT id FROM users WHERE id=?").get(id)) return res.status(404).json({ error: "Пользователь не найден." });
-  db.prepare("INSERT OR IGNORE INTO contacts(owner_id,contact_id) VALUES(?,?)").run(req.userId,id);
-  res.status(201).json({ ok: true });
-});
-app.get("/api/contacts", auth, (req,res) => {
-  const rows = db.prepare(`SELECT u.id,u.name,u.email,u.phone FROM contacts c
-    JOIN users u ON u.id=c.contact_id WHERE c.owner_id=? ORDER BY u.name`).all(req.userId);
-  res.json({ contacts: rows.map(publicUser) });
-});
-app.get("/api/push/public-key",auth,(_req,res)=>{if(!process.env.VAPID_PUBLIC_KEY)return res.status(503).json({error:"Push не настроен."});res.json({publicKey:process.env.VAPID_PUBLIC_KEY})});
-app.post("/api/push/subscribe",auth,(req,res)=>{const sub=req.body.subscription;if(!sub||!sub.endpoint||!sub.keys)return res.status(400).json({error:"Некорректная подписка"});db.prepare("INSERT INTO push_subscriptions(user_id,endpoint,subscription_json) VALUES(?,?,?) ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id,subscription_json=excluded.subscription_json").run(req.userId,sub.endpoint,JSON.stringify(sub));res.status(201).json({ok:true})});
-
-
-app.get("/api/messages/:userId", auth, (req,res) => {
-  const other = Number(req.params.userId);
-  if (!Number.isSafeInteger(other) || !db.prepare("SELECT id FROM users WHERE id=?").get(other)) return res.status(404).json({ error: "Пользователь не найден." });
-  const rows = db.prepare(`SELECT id,sender_id AS senderId,recipient_id AS recipientId,body,created_at AS createdAt
-    FROM messages WHERE (sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)
-    ORDER BY id DESC LIMIT 100`).all(req.userId,other,other,req.userId).reverse();
-  res.json({ messages: rows });
-});
-app.post("/api/messages/:userId", auth, (req,res) => {
-  const recipient = Number(req.params.userId);
-  const body = String(req.body.body || "").trim();
-  if (!Number.isSafeInteger(recipient) || recipient === req.userId || !db.prepare("SELECT id FROM users WHERE id=?").get(recipient))
-    return res.status(400).json({ error: "Некорректный получатель." });
-  if (!body || body.length > 4000) return res.status(400).json({ error: "Сообщение должно быть от 1 до 4000 символов." });
-  const info = db.prepare("INSERT INTO messages(sender_id,recipient_id,body) VALUES(?,?,?)").run(req.userId,recipient,body);
-  const message = db.prepare("SELECT id,sender_id AS senderId,recipient_id AS recipientId,body,created_at AS createdAt FROM messages WHERE id=?").get(info.lastInsertRowid);
-  io.to(String(recipient)).emit("message:new", message);
-  if(process.env.VAPID_PUBLIC_KEY&&process.env.VAPID_PRIVATE_KEY){
-    for(const sub of db.prepare("SELECT id,subscription_json FROM push_subscriptions WHERE user_id=?").all(recipient)){
-      webpush.sendNotification(JSON.parse(sub.subscription_json),JSON.stringify({title:"NOWA",body:"Новое сообщение",url:"./index.html"})).catch(err=>{if(err.statusCode===404||err.statusCode===410)db.prepare("DELETE FROM push_subscriptions WHERE id=?").run(sub.id);});
-    }
-  }
-  res.status(201).json({ message });
-});
-
-io.use((socket,next) => {
-  try {
-    const token = socket.handshake.auth?.token;
-    const payload = jwt.verify(token, JWT_SECRET, { issuer: "nowa" });
-    socket.userId = Number(payload.sub);
-    next();
-  } catch { next(new Error("unauthorized")); }
-});
-io.on("connection", socket => {
-  const uid = String(socket.userId);
-  socket.join(uid);
-  online.set(uid,(online.get(uid)||0)+1);
-  const relayCall = (event, targetEvent, payload) => {
-    const to=Number(payload?.to);
-    if(!Number.isSafeInteger(to)||to===Number(uid)||!db.prepare("SELECT id FROM users WHERE id=?").get(to)) return;
-    if(!online.has(String(to))) { socket.emit("call:unavailable"); return; }
-    const user=db.prepare("SELECT name FROM users WHERE id=?").get(Number(uid));
-    io.to(String(to)).emit(targetEvent,{...payload,from:Number(uid),name:user?.name||"Пользователь NOWA"});
-  };
-  socket.on("call:invite",p=>relayCall("call:invite","call:incoming",p));
-  socket.on("call:accept",p=>relayCall("call:accept","call:accepted",p));
-  socket.on("call:reject",p=>relayCall("call:reject","call:rejected",p));
-  socket.on("call:signal",p=>relayCall("call:signal","call:signal",p));
-  socket.on("call:end",p=>relayCall("call:end","call:ended",p));
-  socket.on("disconnect",()=>{const n=(online.get(uid)||1)-1;if(n<=0)online.delete(uid);else online.set(uid,n);});
-});
-app.get("/api/users/:id/online", auth, (req,res) => res.json({ online: (online.get(String(Number(req.params.id)))||0)>0 }));
-
-app.use((err,_req,res,_next) => {
-  console.error(err);
-  res.status(500).json({ error: "Внутренняя ошибка сервера." });
-});
-server.listen(PORT, () => console.log(`NOWA API listening on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log('NOWA server on http://localhost:' + PORT));
