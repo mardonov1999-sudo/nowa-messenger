@@ -1,327 +1,237 @@
-<!doctype html>
-<html lang="ru" data-theme="dark">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#080d20">
-  <title>NOWA</title>
-  <style>
-    :root{--bg:#080d20;--panel:#111a34;--line:#29365d;--text:#f5f4ff;--muted:#9ba6c7;--purple:#8957ff;--purple2:#6736e8;--bubble:#202b4b;--bubbleMine:#5630c8}
-    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Inter,system-ui,sans-serif;height:100dvh;display:flex;overflow:hidden}
-    button,input{font:inherit;color:inherit;border:none;background:none;cursor:pointer;outline:none}
-    .hidden{display:none!important}
-    
-    /* Авторизация */
-    .auth{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:var(--bg);padding:20px}
-    .card{background:var(--panel);padding:25px;border-radius:20px;width:100%;max-width:400px;box-shadow:0 10px 40px #0005}
-    .field{width:100%;padding:12px;margin:8px 0;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
-    .btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#a17cff,#6736e8);color:#fff;font-weight:bold;margin-top:10px}
-    
-    /* Мессенджер */
-    .app{display:flex;width:100%;max-width:1200px;margin:0 auto;background:var(--panel);border-inline:1px solid var(--line);height:100dvh}
-    .sidebar{width:340px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line)}
-    .header{padding:15px;display:flex;align-items:center;gap:10px;background:var(--panel)}
-    .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#65d7ff,#9255ff);display:grid;place-items:center;font-weight:bold;color:#fff;flex-shrink:0;overflow:hidden}
-    .avatar img{width:100%;height:100%;object-fit:cover}
-    .online-dot{width:10px;height:10px;background:#4ade80;border-radius:50%;position:absolute;bottom:0;right:0;border:2px solid var(--panel)}
-    .list{flex:1;overflow-y:auto;padding:10px}
-    .chat-item{display:flex;gap:10px;padding:10px;border-radius:10px;cursor:pointer}
-    .chat-item:hover{background:var(--bg)}
-    .chat-item.active{background:#30245c}
-    .chat-info{flex:1;min-width:0}
-    .chat-name{font-weight:bold;display:flex;justify-content:space-between}
-    .chat-preview{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    
-    /* Чат */
-    .main{flex:1;display:flex;flex-direction:column;background:var(--bg);position:relative}
-    .messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px}
-    .msg{max-width:75%;padding:10px 14px;border-radius:15px;background:var(--bubble);word-break:break-word;position:relative;align-self:flex-start}
-    .msg.mine{align-self:flex-end;background:var(--bubbleMine)}
-    .msg img{max-width:100%;border-radius:10px;margin-bottom:5px;cursor:pointer}
-    .msg audio{max-width:100%;margin-top:5px;outline:none}
-    .time{font-size:10px;color:var(--muted);text-align:right;margin-top:4px;display:block}
-    .composer{padding:15px;background:var(--panel);display:flex;gap:10px;align-items:center;border-top:1px solid var(--line)}
-    .composer input[type="text"]{flex:1;padding:12px;border-radius:20px;background:var(--bg);border:1px solid var(--line)}
-    .icon-btn{width:40px;height:40px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:20px;flex-shrink:0}
-    .icon-btn.send{background:var(--purple2);color:#fff}
-    .typing{font-size:12px;color:var(--purple);position:absolute;bottom:80px;left:20px}
-    
-    /* Модалки */
-    .modal{position:fixed;inset:0;background:#0008;z-index:60;display:grid;place-items:center;padding:20px}
-    .modal img{max-width:100%;max-height:90vh;border-radius:10px}
-    
-    @media(max-width:700px){.sidebar{width:100%}.app.in-chat .sidebar{display:none}.app:not(.in-chat) .main{display:none}.back{display:block!important}}
-    @media(min-width:701px){.back{display:none!important}}
-  </style>
-</head>
-<body>
+ 'use strict';
 
-<div class="auth" id="authScreen">
-  <div class="card">
-    <h2>NOWA</h2>
-    <input class="field" id="authName" placeholder="Ваше имя">
-    <input class="field" id="authPhone" placeholder="Телефон (+7...)">
-    <input class="field" id="authPass" type="password" placeholder="Пароль (от 10 символов)">
-    <div id="authError" style="color:salmon;font-size:12px;margin-top:10px"></div>
-    <button class="btn" id="btnRegister">Создать аккаунт</button>
-    <button class="btn" id="btnLogin" style="background:var(--panel);border:1px solid var(--line)">Войти</button>
-  </div>
-</div>
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
-<div class="app hidden" id="app">
-  <aside class="sidebar">
-    <div class="header">
-      <div class="avatar" id="myAvatar">?</div>
-      <div style="flex:1"><b id="myName"></b></div>
-      <button class="icon-btn" id="btnNewChat" title="Новый чат">➕</button>
-      <button class="icon-btn" id="btnLogout" title="Выйти">🚪</button>
-    </div>
-    <div class="list" id="chatList"></div>
-  </aside>
-  <main class="main">
-    <div class="header" id="chatHeader" style="display:none">
-      <button class="icon-btn back" id="btnBack">←</button>
-      <div style="position:relative"><div class="avatar" id="peerAvatar">?</div><div class="online-dot hidden" id="peerOnline"></div></div>
-      <div style="flex:1">
-        <b id="peerName"></b>
-        <div style="font-size:12px;color:var(--muted)" id="peerStatus">офлайн</div>
-      </div>
-    </div>
-    <div class="messages" id="messages"></div>
-    <div class="typing hidden" id="typingIndicator">печатает...</div>
-    <div class="composer" id="composer" style="display:none">
-      <button class="icon-btn" id="btnAttach" title="Фото">📎</button>
-      <input type="file" id="fileInput" accept="image/*" class="hidden">
-      <input type="text" id="msgInput" placeholder="Сообщение...">
-      <button class="icon-btn" id="btnMic" title="Голосовое">🎤</button>
-      <button class="icon-btn send" id="btnSend">➤</button>
-    </div>
-  </main>
-</div>
+const PORT = process.env.PORT || 3000;
+const PUBLIC_DIR = path.join(__dirname, '..', 'клиент');
+const DATA_FILE = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'data.json') : path.join(__dirname, 'data.json');
+const SECRET = process.env.NOWA_SECRET || crypto.randomBytes(32).toString('hex');
 
-<div class="modal hidden" id="photoModal" onclick="this.classList.add('hidden')">
-  <img id="photoModalImg" src="">
-</div>
+let db = { users: [], chats: [], messages: [], receipts: {} };
+try {
+  if (fs.existsSync(DATA_FILE)) {
+    db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    console.log('База загружена. Юзеров:', db.users.length);
+  }
+} catch (e) { console.error('Ошибка чтения БД:', e.message); }
 
-<script>
-const API = window.location.origin;
-const $ = id => document.getElementById(id);
-let token = localStorage.getItem('nowa_token');
-let me = JSON.parse(localStorage.getItem('nowa_user') || 'null');
-let chats = [], activeChat = null, stream = null, mediaRecorder = null, audioChunks = [], typingTimer = null;
-
-async function init() {
-  if (!token || !me) return showAuth();
+function save() {
   try {
-    const res = await fetch(API + '/api/me', { headers: { Authorization: 'Bearer ' + token } });
-    if (!res.ok) throw new Error();
-    showApp();
-  } catch { logout(); }
+    fs.writeFileSync(DATA_FILE, JSON.stringify(db));
+  } catch (e) { console.error('Ошибка записи БД:', e.message); }
 }
 
-function showAuth() { $('authScreen').classList.remove('hidden'); $('app').classList.add('hidden'); }
-function showApp() { 
-  $('authScreen').classList.add('hidden'); $('app').classList.remove('hidden'); 
-  $('myName').textContent = me.name; $('myAvatar').textContent = me.name[0].toUpperCase();
-  loadChats(); connectSSE();
-}
+const uid = () => crypto.randomUUID();
+const now = () => Date.now();
 
-async function api(path, opts = {}) {
-  const res = await fetch(API + path, { ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...opts.headers } });
-  if (res.status === 401) { logout(); throw new Error('401'); }
-  return res;
+function sign(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const mac = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
+  return body + '.' + mac;
 }
-
-function logout() {
-  localStorage.clear(); location.reload();
-}
-
-$('btnRegister').onclick = async () => {
-  const name = $('authName').value.trim(), phone = $('authPhone').value.trim(), pass = $('authPass').value;
+function verify(token) {
+  if (!token) return null;
+  const i = token.lastIndexOf('.');
+  if (i < 0) return null;
+  const body = token.slice(0, i), mac = token.slice(i + 1);
+  const expect = crypto.createHmac('sha256', SECRET).update(body).digest('base64url');
+  if (mac !== expect) return null;
   try {
-    const res = await fetch(API + '/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({name, phone, password: pass}) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    token = data.token; me = data.user;
-    localStorage.setItem('nowa_token', token); localStorage.setItem('nowa_user', JSON.stringify(me));
-    showApp();
-  } catch (e) { $('authError').textContent = e.message; }
-};
+    const p = JSON.parse(Buffer.from(body, 'base64url').toString());
+    if (p.exp && p.exp < now()) return null;
+    return p;
+  } catch { return null; }
+}
+const makeToken = (userId) => sign({ uid: userId, exp: now() + 1000 * 60 * 60 * 24 * 30 });
 
-$('btnLogin').onclick = async () => {
-  const phone = $('authPhone').value.trim(), pass = $('authPass').value;
+function hashPassword(pw) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  return salt + ':' + crypto.scryptSync(pw, salt, 32).toString('hex');
+}
+function checkPassword(pw, stored) {
   try {
-    const res = await fetch(API + '/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({phone, password: pass}) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    token = data.token; me = data.user;
-    localStorage.setItem('nowa_token', token); localStorage.setItem('nowa_user', JSON.stringify(me));
-    showApp();
-  } catch (e) { $('authError').textContent = e.message; }
-};
-
-$('btnLogout').onclick = logout;
-
-async function loadChats() {
-  const res = await api('/api/chats');
-  chats = await res.json();
-  renderChats();
+    const [salt, hash] = String(stored).split(':');
+    return crypto.scryptSync(pw, salt, 32).toString('hex') === hash;
+  } catch { return false; }
 }
 
-function renderChats() {
-  const list = $('chatList'); list.innerHTML = '';
-  chats.forEach(c => {
-    const el = document.createElement('div');
-    el.className = 'chat-item' + (activeChat && activeChat.id === c.id ? ' active' : '');
-    el.innerHTML = `
-      <div class="avatar">${c.name[0].toUpperCase()}</div>
-      <div class="chat-info">
-        <div class="chat-name"><span>${c.name}</span></div>
-        <div class="chat-preview">${c.lastMessage ? (c.lastMessage.text || 'Вложение') : 'Нет сообщений'}</div>
-      </div>
-    `;
-    el.onclick = () => openChat(c);
-    list.append(el);
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS' };
+function send(res, code, data) {
+  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', ...CORS });
+  res.end(typeof data === 'string' ? data : JSON.stringify(data));
+}
+function readBody(req) {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => { try { resolve(JSON.parse(body || '{}')); } catch { resolve({}); } });
   });
 }
 
-// --- Создание чата по имени ---
-$('btnNewChat').onclick = async () => {
-  const name = prompt('Введите имя пользователя, с которым хотите начать чат:');
-  if (!name) return;
-  try {
-    const res = await api('/api/chats', { method: 'POST', body: JSON.stringify({ name }) });
-    const chat = await res.json();
-    if (!res.ok) throw new Error(chat.error);
-    await loadChats();
-    openChat(chat);
-  } catch (e) { alert(e.message); }
-};
-
-async function openChat(c) {
-  activeChat = c;
-  $('app').classList.add('in-chat');
-  $('chatHeader').style.display = 'flex'; $('composer').style.display = 'flex';
-  $('peerName').textContent = c.name;
-  $('peerAvatar').textContent = c.name[0].toUpperCase();
-  $('peerOnline').classList.toggle('hidden', !c.online);
-  $('peerStatus').textContent = c.online ? 'в сети' : 'был(а) недавно';
-  renderChats();
-  loadMessages();
+function authUser(req, url) {
+  let token = '';
+  const h = req.headers.authorization;
+  if (h && h.startsWith('Bearer ')) token = h.slice(7);
+  else if (url && url.searchParams.get('token')) token = url.searchParams.get('token');
+  const p = verify(token);
+  return p ? db.users.find(u => u.id === p.uid) : null;
 }
 
-function closeChat() {
-  activeChat = null;
-  $('app').classList.remove('in-chat');
-  $('chatHeader').style.display = 'none'; $('composer').style.display = 'none';
-}
-$('btnBack').onclick = closeChat;
-
-async function loadMessages() {
-  const res = await api('/api/chats/' + activeChat.id + '/messages');
-  const data = await res.json();
-  const box = $('messages'); box.innerHTML = '';
-  data.messages.forEach(m => renderMsg(m));
-  box.scrollTop = box.scrollHeight;
+function pubUser(u) {
+  if (!u) return null;
+  return { id: u.id, name: u.name, phone: u.phone, avatar: u.avatar || '', lastSeen: u.lastSeen || 0 };
 }
 
-function renderMsg(m) {
-  const box = $('messages');
-  const div = document.createElement('div');
-  div.className = 'msg' + (m.senderId === me.id ? ' mine' : '');
+function chatView(c, meId) {
+  const members = c.members.map(id => pubUser(db.users.find(u => u.id === id))).filter(Boolean);
+  const last = [...db.messages].reverse().find(m => m.chatId === c.id && !m.deletedAt);
   
-  let content = '';
-  if (m.attachment && m.attachment.type === 'image') {
-    content += `<img src="${m.attachment.data}" onclick="document.getElementById('photoModalImg').src='${m.attachment.data}';document.getElementById('photoModal').classList.remove('hidden')">`;
-  }
-  if (m.attachment && m.attachment.type === 'audio') {
-    content += `<audio controls src="${m.attachment.data}"></audio>`;
-  }
-  if (m.text) content += `<div>${m.text}</div>`;
-  
-  div.innerHTML = content + `<span class="time">${new Date(m.ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span>`;
-  box.append(div);
-  box.scrollTop = box.scrollHeight;
-}
+  const other = members.find(m => m.id !== meId);
+  const online = other ? (now() - other.lastSeen < 60000) : false;
 
-$('btnSend').onclick = sendMsg;
-$('msgInput').onkeypress = e => { if (e.key === 'Enter') sendMsg(); };
-
-function sendMsg() {
-  const text = $('msgInput').value.trim();
-  if (!text || !activeChat) return;
-  $('msgInput').value = '';
-  api('/api/chats/' + activeChat.id + '/messages', { method: 'POST', body: JSON.stringify({ text }) });
-}
-
-$('btnAttach').onclick = () => $('fileInput').click();
-$('fileInput').onchange = e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    api('/api/chats/' + activeChat.id + '/messages', {
-      method: 'POST', body: JSON.stringify({ type: 'image', attachment: { type: 'image', data: ev.target.result } })
-    });
+  return {
+    id: c.id, name: c.name, isGroup: !!c.isGroup, members,
+    avatar: c.avatar || '', lastMessage: last || null,
+    online: online
   };
-  reader.readAsDataURL(file);
-  e.target.value = '';
-};
-
-$('btnMic').onclick = async () => {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    $('btnMic').textContent = '🎤';
-    return;
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      const reader = new FileReader();
-      reader.onload = ev => {
-        api('/api/chats/' + activeChat.id + '/messages', {
-          method: 'POST', body: JSON.stringify({ type: 'audio', attachment: { type: 'audio', data: ev.target.result } })
-        });
-      };
-      reader.readAsDataURL(blob);
-    };
-    mediaRecorder.start();
-    $('btnMic').textContent = '⏹️';
-  } catch (e) { alert('Нет доступа к микрофону'); }
-};
-
-function connectSSE() {
-  if (stream) stream.close();
-  stream = new EventSource(API + '/api/stream?token=' + token);
-  
-  stream.addEventListener('message:new', e => {
-    const m = JSON.parse(e.data);
-    if (activeChat && m.chatId === activeChat.id) renderMsg(m);
-    loadChats();
-  });
-  
-  stream.addEventListener('typing', e => {
-    const data = JSON.parse(e.data);
-    if (activeChat && data.chatId === activeChat.id && data.userId !== me.id) {
-      $('typingIndicator').classList.remove('hidden');
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => $('typingIndicator').classList.add('hidden'), 2000);
-    }
-  });
-  
-  stream.addEventListener('chat:new', () => loadChats());
 }
 
-$('msgInput').addEventListener('input', () => {
-  if (!activeChat) return;
-  api('/api/typing', { method: 'POST', body: JSON.stringify({ chatId: activeChat.id }) });
+const clients = new Map();
+function broadcast(userIds, event, data) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  userIds.forEach(id => {
+    const set = clients.get(id);
+    if (set) set.forEach(res => { try { res.write(payload); } catch (_) {} });
+  });
+}
+function broadcastChat(c, event, data) { broadcast(c.members, event, data); }
+
+function serveStatic(req, res, pathname) {
+  let rel = pathname === '/' ? '/index.html' : pathname;
+  const file = path.resolve(PUBLIC_DIR, rel.replace(/^\/+/, ''));
+  if (!file.startsWith(path.resolve(PUBLIC_DIR))) return send(res, 403, { error: 'forbidden' });
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    const fallback = path.join(PUBLIC_DIR, 'index.html');
+    if (fs.existsSync(fallback)) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return fs.createReadStream(fallback).pipe(res);
+    }
+    return send(res, 404, { error: 'not found' });
+  }
+  const ext = path.extname(file).toLowerCase();
+  const type = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' }[ext] || 'application/octet-stream';
+  res.writeHead(200, { 'Content-Type': type });
+  fs.createReadStream(file).pipe(res);
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const method = req.method;
+  const p = url.pathname;
+
+  if (method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
+  if (method === 'GET' && p === '/healthz') return send(res, 200, { ok: true });
+
+  try {
+    if (p.startsWith('/api/')) {
+      if (method === 'POST' && p === '/api/auth/register') {
+        const b = await readBody(req);
+        if (!b.name || !b.phone || b.password.length < 10) return send(res, 400, { error: 'Заполните все поля (пароль от 10 символов)' });
+        if (db.users.some(u => u.phone === b.phone)) return send(res, 409, { error: 'Этот номер уже занят' });
+        
+        const user = { id: uid(), name: b.name, phone: b.phone, password: hashPassword(b.password), lastSeen: now() };
+        db.users.push(user); save();
+        return send(res, 200, { token: makeToken(user.id), user: pubUser(user) });
+      }
+
+      if (method === 'POST' && p === '/api/auth/login') {
+        const b = await readBody(req);
+        const u = db.users.find(x => x.phone === b.phone);
+        if (!u || !checkPassword(b.password, u.password)) return send(res, 401, { error: 'Неверный номер или пароль' });
+        u.lastSeen = now(); save();
+        return send(res, 200, { token: makeToken(u.id), user: pubUser(u) });
+      }
+
+      if (method === 'GET' && p === '/api/stream') {
+        const me = authUser(req, url);
+        if (!me) return send(res, 401, { error: 'unauthorized' });
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', ...CORS });
+        res.write(`: connected\n\n`);
+        const set = clients.get(me.id) || new Set();
+        set.add(res); clients.set(me.id, set);
+        req.on('close', () => { set.delete(res); if (!set.size) clients.delete(me.id); });
+        return;
+      }
+
+      const me = authUser(req, url);
+      if (!me) return send(res, 401, { error: 'unauthorized' });
+      me.lastSeen = now();
+
+      if (method === 'GET' && p === '/api/me') return send(res, 200, { user: pubUser(me) });
+
+      if (method === 'GET' && p === '/api/chats') {
+        const list = db.chats.filter(c => c.members.includes(me.id)).map(c => chatView(c, me.id));
+        return send(res, 200, list);
+      }
+
+      if (method === 'POST' && p === '/api/chats') {
+        const b = await readBody(req);
+        let peer = db.users.find(u => u.name.toLowerCase() === (b.name || '').toLowerCase() && u.id !== me.id);
+        if (!peer) return send(res, 404, { error: 'Пользователь с таким именем не найден' });
+        
+        let c = db.chats.find(x => !x.isGroup && x.members.includes(me.id) && x.members.includes(peer.id));
+        if (!c) {
+          c = { id: uid(), name: peer.name, isGroup: false, members: [me.id, peer.id], createdAt: now() };
+          db.chats.push(c); save();
+        }
+        return send(res, 200, chatView(c, me.id));
+      }
+
+      if (method === 'GET' && p.startsWith('/api/chats/') && p.endsWith('/messages')) {
+        const id = p.split('/')[3];
+        const c = db.chats.find(x => x.id === id && x.members.includes(me.id));
+        if (!c) return send(res, 404, { error: 'not found' });
+        const list = db.messages.filter(m => m.chatId === id).sort((a, b) => a.ts - b.ts);
+        return send(res, 200, { messages: list });
+      }
+
+      if (method === 'POST' && p.startsWith('/api/chats/') && p.endsWith('/messages')) {
+        const id = p.split('/')[3];
+        const c = db.chats.find(x => x.id === id && x.members.includes(me.id));
+        if (!c) return send(res, 404, { error: 'not found' });
+        
+        const b = await readBody(req);
+        const msg = {
+          id: uid(), chatId: id, senderId: me.id,
+          text: String(b.text || '').slice(0, 4000),
+          type: b.type || 'text',
+          attachment: b.attachment || null,
+          ts: now()
+        };
+        db.messages.push(msg); save();
+        broadcastChat(c, 'message:new', msg);
+        return send(res, 200, { message: msg });
+      }
+
+      if (method === 'POST' && p === '/api/typing') {
+        const b = await readBody(req);
+        const c = db.chats.find(x => x.id === b.chatId && x.members.includes(me.id));
+        if (c) broadcast(c.members.filter(id => id !== me.id), 'typing', { chatId: c.id, userId: me.id });
+        return send(res, 200, { ok: true });
+      }
+
+      return send(res, 404, { error: 'not found' });
+    }
+
+    if (method === 'GET') return serveStatic(req, res, p);
+    return send(res, 405, { error: 'method not allowed' });
+  } catch (e) {
+    console.error(e);
+    send(res, 500, { error: 'server error' });
+  }
 });
 
-init();
-</script>
-</body>
-</html>
+server.listen(PORT, () => console.log('NOWA server on port', PORT));
