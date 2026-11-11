@@ -56,7 +56,7 @@ const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
 const allowedOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: allowedOrigin, credentials: true }));
 app.use(express.json({ limit: "32kb" }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
