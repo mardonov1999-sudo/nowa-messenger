@@ -5,7 +5,9 @@ const path = require('path');
 const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
+const DATA_FILE = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, 'data.json')
+  : path.join(__dirname, 'data.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SECRET = process.env.NOWA_SECRET || crypto.randomBytes(32).toString('hex');
 
