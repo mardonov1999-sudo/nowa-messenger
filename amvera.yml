@@ -5,6 +5,7 @@
     version: 18
 
 build:
+  skip: yes
   artifacts:
     "сервер/*": /
     "клиент/*": /клиент/
@@ -13,4 +14,3 @@ run:
   command: node server.js
   containerPort: 3000
   persistenceMount: /data
-  
