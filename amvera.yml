@@ -1,0 +1,10 @@
+meta:
+  environment: node
+  toolchain:
+    name: npm
+    version: 18
+
+run:
+  command: npm start
+  containerPort: 3000
+  persistenceMount: /data
