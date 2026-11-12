@@ -5,9 +5,12 @@
     version: 18
 
 build:
-  additionalCommands: cd сервер && npm install
+  artifacts:
+    "сервер/*": /
+    "клиент/*": /клиент/
 
 run:
-  command: cd сервер && node server.js
+  command: node server.js
   containerPort: 3000
   persistenceMount: /data
+  
